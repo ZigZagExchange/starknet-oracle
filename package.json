@@ -1,0 +1,21 @@
+{
+  "name": "starknetoracle",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "snojj.eth",
+  "license": "ISC",
+  "dependencies": {
+    "cw-sdk-node": "^1.0.0-beta.9",
+    "dotenv": "^16.0.0",
+    "express": "^4.17.2",
+    "starknet": "^2.5.1"
+  }
+}

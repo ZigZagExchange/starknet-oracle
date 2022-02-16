@@ -1,0 +1,13 @@
+artifacts/
+node_modules/
+
+.env
+notes.txt
+.pytest_cache
+.vscode
+
+tests/__pycache__/
+
+tests/local_tests/__pycache__/
+tests/testnet_tests/__pycache__/
+tests/other_tests/

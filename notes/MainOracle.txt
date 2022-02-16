@@ -1,0 +1,53 @@
+GENERAL:
+
+1)constructor - sets access controll addresses and the aggregator address
+
+2)aggregator functions - are used to controll the aggregator(relay) contract_address (where it points to)
+    *the aggregator gets prices from the data-source which is my contract for now,
+     but will be used to get chainlink price feeds when possible and make them available for MainOracle
+
+3)update_data - gets this rounds Response data (roundId, prices, timestamp, data_source...) 
+    and stores it to make it available for querying
+
+4)getters:
+    -latest_price(id) - gets the price of the symbol at id
+        (!Will have to provide a map of ids since cairo does not naitevly support strings)
+    -latest_aggregated_prices() - gets an array of all current prices
+
+    -latest_round_data(id) - returns the latest Response data (roundId, prices, timestamp, data_source...)
+        for the symbol at id 
+    -get_round_data(id, roundId) - returns the latest Response data at round=roundId for the symbol at id 
+    -get_aggregated_round_data(roundId) - returns all the Responses at round=roundId 
+
+
+5)structured querys:
+    -base_to_quote_price() - returns the price of non-usd denominated pair (e.g. ETH/BTC) 
+
+    **store latest changes and maybe even a moving average
+    **custom querys to outside sources such as volumes, etc. (!Would be centralized and cost a fee)
+
+
+
+
+
+AGGREGATOR PROXY FUNCTIONS:
+- helper functions for MainOracle 
+- ment to abstract away some logic from MainOracle and make it simpler
+- these functions call and get data from the Aggregator 
+
+
+
+AGGREGATOR:
+-gets data from the data-source
+-the aggregator gets prices from the data-source which is my contract for now,
+    but will be used to get chainlink price feeds from L1,
+    when possible and make them available for MainOracle
+-gets called by MainOracle thorugh AggregatorProxyFunctions
+**Should only allow MainOracle to call its functions
+
+
+DUMMY DATA SOURCE:
+1) set_prices - sets all the prices and stores them
+2) getters - get queried by the Aggregator and passed through to MainOracle
+
+
