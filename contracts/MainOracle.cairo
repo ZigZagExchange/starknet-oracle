@@ -257,7 +257,7 @@ end
 func fractal_div{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
         x : felt, y : felt) -> (res : felt):
     alloc_locals
-    let decimals_ = 8
+    let (decimals_) = decimals.read()
 
     let ten : felt = Math64x61_to64x61(10)
 

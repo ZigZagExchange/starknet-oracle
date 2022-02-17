@@ -1,0 +1,445 @@
+[
+    {
+        "members": [
+            {
+                "name": "low",
+                "offset": 0,
+                "type": "felt"
+            },
+            {
+                "name": "high",
+                "offset": 1,
+                "type": "felt"
+            }
+        ],
+        "name": "Uint256",
+        "size": 2,
+        "type": "struct"
+    },
+    {
+        "members": [
+            {
+                "name": "roundId",
+                "offset": 0,
+                "type": "felt"
+            },
+            {
+                "name": "identifier",
+                "offset": 1,
+                "type": "felt"
+            },
+            {
+                "name": "answer",
+                "offset": 2,
+                "type": "Uint256"
+            },
+            {
+                "name": "timestamp",
+                "offset": 4,
+                "type": "felt"
+            },
+            {
+                "name": "block_number",
+                "offset": 5,
+                "type": "felt"
+            },
+            {
+                "name": "data_source_address",
+                "offset": 6,
+                "type": "felt"
+            }
+        ],
+        "name": "Response",
+        "size": 7,
+        "type": "struct"
+    },
+    {
+        "data": [
+            {
+                "name": "owner",
+                "type": "felt"
+            },
+            {
+                "name": "moderator",
+                "type": "felt"
+            },
+            {
+                "name": "external_oracle",
+                "type": "felt"
+            },
+            {
+                "name": "block_number",
+                "type": "felt"
+            }
+        ],
+        "keys": [],
+        "name": "access_controlls_initialized",
+        "type": "event"
+    },
+    {
+        "data": [
+            {
+                "name": "prev_owner",
+                "type": "felt"
+            },
+            {
+                "name": "new_owner",
+                "type": "felt"
+            },
+            {
+                "name": "block_number",
+                "type": "felt"
+            }
+        ],
+        "keys": [],
+        "name": "ownership_transfered",
+        "type": "event"
+    },
+    {
+        "data": [
+            {
+                "name": "prev_moderator",
+                "type": "felt"
+            },
+            {
+                "name": "new_moderator",
+                "type": "felt"
+            },
+            {
+                "name": "block_number",
+                "type": "felt"
+            }
+        ],
+        "keys": [],
+        "name": "moderator_changed",
+        "type": "event"
+    },
+    {
+        "data": [
+            {
+                "name": "prev_external_oracle",
+                "type": "felt"
+            },
+            {
+                "name": "new_external_oracle",
+                "type": "felt"
+            },
+            {
+                "name": "block_number",
+                "type": "felt"
+            }
+        ],
+        "keys": [],
+        "name": "external_oracle_changed",
+        "type": "event"
+    },
+    {
+        "data": [
+            {
+                "name": "current_aggretgator",
+                "type": "felt"
+            },
+            {
+                "name": "proposed_aggregator",
+                "type": "felt"
+            },
+            {
+                "name": "proposer",
+                "type": "felt"
+            },
+            {
+                "name": "block_number",
+                "type": "felt"
+            }
+        ],
+        "keys": [],
+        "name": "new_aggregator_proposed",
+        "type": "event"
+    },
+    {
+        "data": [
+            {
+                "name": "prev_aggretgator",
+                "type": "felt"
+            },
+            {
+                "name": "new_aggregator",
+                "type": "felt"
+            },
+            {
+                "name": "block_number",
+                "type": "felt"
+            }
+        ],
+        "keys": [],
+        "name": "new_aggregator_accepted",
+        "type": "event"
+    },
+    {
+        "data": [
+            {
+                "name": "roundId",
+                "type": "felt"
+            },
+            {
+                "name": "timestamp",
+                "type": "felt"
+            },
+            {
+                "name": "block_number",
+                "type": "felt"
+            }
+        ],
+        "keys": [],
+        "name": "round_data_updated",
+        "type": "event"
+    },
+    {
+        "inputs": [
+            {
+                "name": "owner_address",
+                "type": "felt"
+            },
+            {
+                "name": "moderator_address",
+                "type": "felt"
+            },
+            {
+                "name": "external_oracle_address",
+                "type": "felt"
+            },
+            {
+                "name": "aggregator_address",
+                "type": "felt"
+            }
+        ],
+        "name": "constructor",
+        "outputs": [],
+        "type": "constructor"
+    },
+    {
+        "inputs": [],
+        "name": "get_aggregator",
+        "outputs": [
+            {
+                "name": "aggregator_address",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "get_proposed_agregator",
+        "outputs": [
+            {
+                "name": "aggregator_address",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "new_aggregator_address",
+                "type": "felt"
+            }
+        ],
+        "name": "propose_new_aggregator",
+        "outputs": [],
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "new_aggregator_address",
+                "type": "felt"
+            }
+        ],
+        "name": "confirm_new_aggregator",
+        "outputs": [],
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "update_data",
+        "outputs": [],
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "get_external_oracle",
+        "outputs": [
+            {
+                "name": "address",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "get_decimals",
+        "outputs": [
+            {
+                "name": "decimals",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "latest_timestamp",
+        "outputs": [
+            {
+                "name": "ts",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "latest_block_number",
+        "outputs": [
+            {
+                "name": "block_number",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "latest_round",
+        "outputs": [
+            {
+                "name": "roundId",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "id",
+                "type": "felt"
+            }
+        ],
+        "name": "latest_price",
+        "outputs": [
+            {
+                "name": "price",
+                "type": "Uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "latest_aggregated_prices",
+        "outputs": [
+            {
+                "name": "prices_len",
+                "type": "felt"
+            },
+            {
+                "name": "prices",
+                "type": "Uint256*"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "id",
+                "type": "felt"
+            }
+        ],
+        "name": "latest_round_data",
+        "outputs": [
+            {
+                "name": "res",
+                "type": "Response"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "id",
+                "type": "felt"
+            },
+            {
+                "name": "roundId",
+                "type": "felt"
+            }
+        ],
+        "name": "get_round_data",
+        "outputs": [
+            {
+                "name": "res",
+                "type": "Response"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "roundId",
+                "type": "felt"
+            }
+        ],
+        "name": "get_aggregated_round_data",
+        "outputs": [
+            {
+                "name": "round_data_len",
+                "type": "felt"
+            },
+            {
+                "name": "round_data",
+                "type": "Response*"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "baseId",
+                "type": "felt"
+            },
+            {
+                "name": "quoteId",
+                "type": "felt"
+            }
+        ],
+        "name": "base_to_quote_price",
+        "outputs": [
+            {
+                "name": "res",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    }
+]

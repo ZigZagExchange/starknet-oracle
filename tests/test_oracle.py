@@ -5,7 +5,7 @@ from starknet_py.net.client import Client
 from starknet_py.contract import Contract
 
 
-main_oracle_addr = "0x077d70364e74ad1dfe979751f583fbff5e0543e7dfff9ddc7b2f6a4540c3afdc"
+main_oracle_addr = "0x03e8cc88d807820c4d7ad76c8f615dcbb9db0408a9318666dd114b388263369a"
 
 
 @pytest.fixture(scope='module')
@@ -35,4 +35,4 @@ async def test_main_logic(contract_factory):
     # Test oracle_functions by changing the index (3)
     res1 = await main_oracle.functions[oracle_functions[3]].call(14)
 
-    print(res1)
+    print(res1.price/10**6)
