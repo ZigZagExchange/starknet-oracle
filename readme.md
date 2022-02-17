@@ -8,7 +8,7 @@
 
 
 ### Functions:
-```
+```cairo
 latest_timestamp() -> (ts : felt)   # Returns the timestamp of when prices where last updated
 latest_block_number() -> (bn : felt)   # Returns the block number of when prices where last updated
 latest_round() -> (roundId: felt)   # Returns the round ID of when prices where last updated
@@ -20,9 +20,12 @@ get_aggregated_round_data(roundId : felt) -> (round_data_len : felt, round_data 
 base_to_quote_price(base : felt, quote : felt) -> Returns the latest base price denominated in quote price  (E.g ETH/BTC; ETH=base, BTC=quote)
 ```
 
+### NOTE:
+__Prices returned by the oracle are multiplied by 10**8__
+
+
 
 ---
-
 
 
 #### Asset IDs:
@@ -38,7 +41,7 @@ base_to_quote_price(base : felt, quote : felt) -> Returns the latest base price 
 
 #### Response Struct
 
-```
+```cairo
 struct Response:
     member roundId : felt  # self-explanatory
     member identifier : felt  # example ETH/USD (hashed index from asset IDs)
@@ -48,6 +51,39 @@ struct Response:
     member data_source_address : felt  # address of data-source filleing the requests
 end
 ```
+
+### EXAMPLE
+
+You can find a simple test script below, to try out some of the oracle functions in python. To use it download the [test_oracle.py](https://github.com/ZigZagExchange/starknet-oracle/blob/main/tests/test_oracle.py) file and make sure you have all the dependecies isnstalled (see below).
+
+Run the file wit this command: 
+`pytest -s <PATH_TO_FILE>/test_oracle.py::test_main_logic`
+
+```python
+
+oracle_functions = ["latest_timestamp", "latest_block_number", "latest_round",
+                    "latest_price", "latest_aggregated_prices", "get_round_data", "base_to_quote_price"]
+
+
+@pytest.mark.asyncio
+async def test_main_logic(contract_factory):
+    main_oracle = contract_factory
+
+    # Test oracle_functions by changing the index (3)
+    res1 = await main_oracle.functions[oracle_functions[3]].call(14)
+
+    print(res1)
+
+```
+
+#### Requirements:
+
+__pytest__:              ` pip install pytest `   
+__starknet_py__:         ` pip install starknet.py `
+
+
+
+---
 
 
 ### ADDRESSES
