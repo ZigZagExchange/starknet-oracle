@@ -121,7 +121,7 @@ async def main():
 
     task = asyncio.Task(set_and_update_prices(multiplied_prices))
 
-    await asyncio.sleep(15)
+    await asyncio.sleep(75)
 
 
 if __name__ == '__main__':
