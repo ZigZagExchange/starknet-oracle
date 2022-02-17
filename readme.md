@@ -8,7 +8,7 @@
 
 
 ### Functions:
-```
+```cairo
 latest_timestamp() -> (ts : felt)   # Returns the timestamp of when prices where last updated
 latest_block_number() -> (bn : felt)   # Returns the block number of when prices where last updated
 latest_round() -> (roundId: felt)   # Returns the round ID of when prices where last updated
@@ -20,9 +20,12 @@ get_aggregated_round_data(roundId : felt) -> (round_data_len : felt, round_data 
 base_to_quote_price(base : felt, quote : felt) -> Returns the latest base price denominated in quote price  (E.g ETH/BTC; ETH=base, BTC=quote)
 ```
 
+### NOTE:
+__Prices returned by the oracle are multiplied by 10**6__
+
+
 
 ---
-
 
 
 #### Asset IDs:
@@ -38,7 +41,7 @@ base_to_quote_price(base : felt, quote : felt) -> Returns the latest base price 
 
 #### Response Struct
 
-```
+```cairo
 struct Response:
     member roundId : felt  # self-explanatory
     member identifier : felt  # example ETH/USD (hashed index from asset IDs)
@@ -49,14 +52,50 @@ struct Response:
 end
 ```
 
+---
+
+
+### EXAMPLE
+
+You can find a simple test script below, to try out some of the oracle functions in python. To use it download the [test_oracle.py](https://github.com/ZigZagExchange/starknet-oracle/blob/main/tests/test_oracle.py) file and make sure you have all the dependecies isnstalled (see below).
+
+Run the file wit this command: 
+`pytest -s <PATH_TO_FILE>/test_oracle.py::test_main_logic`
+
+```python
+
+oracle_functions = ["latest_timestamp", "latest_block_number", "latest_round",
+                    "latest_price", "latest_aggregated_prices", "get_round_data", "base_to_quote_price"]
+
+
+@pytest.mark.asyncio
+async def test_main_logic(contract_factory):
+    main_oracle = contract_factory
+
+    # Test oracle_functions by changing the index (3)
+    res1 = await main_oracle.functions[oracle_functions[3]].call(14)
+
+    print(res1)
+
+```
+
+#### Requirements:
+
+__pytest__:              ` pip install pytest `   
+__starknet_py__:         ` pip install starknet.py `
+
+
+
+---
+
 
 ### ADDRESSES
 
-**DataSource** = 0x01ff6bac95b035983b359c21ba5eef8cf2f901750e02be476d0359723384f807
+**DataSource** = 0x07f294c1b283fe0ed3fe8b2cbfc5f107050d827e1e40d5cdaf4001c85f600be7
 
-**Aggregator** = 0x0713e5351b9f8b4c0be5132d4df8b5c07f90f56589c70d979a20d0c8dac4a468
+**Aggregator** = 0x065363a0dd62a90189d9fb718a970ede04238f36d6da7dc8e9ef2b0e63c86aa2
 
-**MainOracle** = 0x077d70364e74ad1dfe979751f583fbff5e0543e7dfff9ddc7b2f6a4540c3afdc
+**MainOracle** = 0x03e8cc88d807820c4d7ad76c8f615dcbb9db0408a9318666dd114b388263369a
 
 
 
