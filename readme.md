@@ -52,6 +52,9 @@ struct Response:
 end
 ```
 
+---
+
+
 ### EXAMPLE
 
 You can find a simple test script below, to try out some of the oracle functions in python. To use it download the [test_oracle.py](https://github.com/ZigZagExchange/starknet-oracle/blob/main/tests/test_oracle.py) file and make sure you have all the dependecies isnstalled (see below).
