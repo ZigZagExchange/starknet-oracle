@@ -17,6 +17,7 @@ latest_aggregated_prices() -> (prices_len : felt, prices : Uint256*)   # returns
 latest_round_data(id : felt) -> (res : Response)   # takes in the asset ID argument (see below) and returns the latest Response data (see below)
 get_round_data(id : felt, roundId : felt) -> (res : Response)   # takes an asset ID and round ID and returns the Response data of selected asset at round round ID    (Will add a function to find a specific time)
 get_aggregated_round_data(roundId : felt) -> (round_data_len : felt, round_data : Response*)   # returns an array of all Responses at round roundId  
+base_to_quote_price(base : felt, quote : felt) -> Returns the latest base price denominated in quote price  (E.g ETH/BTC; ETH=base, BTC=quote)
 ```
 
 
