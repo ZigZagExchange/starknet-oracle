@@ -21,7 +21,7 @@ base_to_quote_price(base : felt, quote : felt) -> Returns the latest base price 
 ```
 
 ### NOTE:
-__Prices returned by the oracle are multiplied by 10**8__
+__Prices returned by the oracle are multiplied by 10**6__
 
 
 
@@ -91,11 +91,11 @@ __starknet_py__:         ` pip install starknet.py `
 
 ### ADDRESSES
 
-**DataSource** = 0x01ff6bac95b035983b359c21ba5eef8cf2f901750e02be476d0359723384f807
+**DataSource** = 0x07f294c1b283fe0ed3fe8b2cbfc5f107050d827e1e40d5cdaf4001c85f600be7
 
-**Aggregator** = 0x0713e5351b9f8b4c0be5132d4df8b5c07f90f56589c70d979a20d0c8dac4a468
+**Aggregator** = 0x065363a0dd62a90189d9fb718a970ede04238f36d6da7dc8e9ef2b0e63c86aa2
 
-**MainOracle** = 0x077d70364e74ad1dfe979751f583fbff5e0543e7dfff9ddc7b2f6a4540c3afdc
+**MainOracle** = 0x03e8cc88d807820c4d7ad76c8f615dcbb9db0408a9318666dd114b388263369a
 
 
 
