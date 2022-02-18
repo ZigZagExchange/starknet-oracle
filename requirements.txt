@@ -1,0 +1,5 @@
+python-decouple
+cryptowatch-sdk
+starknet.py==0.1.5a0
+pytest
+cairo-nile
