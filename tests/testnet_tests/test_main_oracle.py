@@ -10,7 +10,7 @@ from pathlib import Path
 from dataclasses import dataclass
 from decouple import config
 
-from starkware.crypto.signature.signature import private_to_stark_key, sign
+from starkware.crypto.signature.signature import private_to_stark_key, get_random_private_key
 from starkware.starknet.public.abi import get_selector_from_name, get_storage_var_address
 
 
@@ -48,11 +48,11 @@ contract_addr = "0x176c6cf214add7824b98715977a56f60aea4dc8149b3fc87dfd9cc9f3a3b1
 
 owner_addr = "0x05e8e3ffb034bb955aa73bc58d47f8126e9664c5398d0307fbd6dc54f10d867c"
 moderator_addr = "0x06adb833832f37235712c11620042b40e535bf99e9e37d577d484a91e0d15bdd"
-external_oracle_addr = "0x0419186ee3da4f00da8b9ced6c5d4e46867e2a5fb546fe8dbdf2346a550d9a46"
+external_oracle_addr = "0x07d10fb304e6752b577c1f0b85bdab549c937320f13175c36f623735ad3737ef"
 
-data_source_addr = "0x01ff6bac95b035983b359c21ba5eef8cf2f901750e02be476d0359723384f807"
-aggregator_addr = "0x0713e5351b9f8b4c0be5132d4df8b5c07f90f56589c70d979a20d0c8dac4a468"
-main_oracle_addr = "0x077d70364e74ad1dfe979751f583fbff5e0543e7dfff9ddc7b2f6a4540c3afdc"
+data_source_addr = "0x07f294c1b283fe0ed3fe8b2cbfc5f107050d827e1e40d5cdaf4001c85f600be7"
+aggregator_addr = "0x065363a0dd62a90189d9fb718a970ede04238f36d6da7dc8e9ef2b0e63c86aa2"
+main_oracle_addr = "0x03e8cc88d807820c4d7ad76c8f615dcbb9db0408a9318666dd114b388263369a"
 
 
 asset_prices = {
@@ -98,7 +98,7 @@ asset_prices = {k: asset_prices[k] for k in sorted(asset_prices)}
 
 asset_prices_indexes = {k: i for i, k in enumerate(asset_prices)}
 
-multiplied_prices = [int(price * math.pow(10, 8))
+multiplied_prices = [int(price * math.pow(10, 6))
                      for price in list(asset_prices.values())]
 
 
@@ -156,7 +156,11 @@ async def test_main_logic(contract_factory):
     res1 = await main_oracle.functions["latest_price"].call(14)
 
     print(price)
-    print(res1.price / 10**8)
+    p2 = res1.price / 10**8
+    print(p2)
+
+    diff = abs(p2 - price)
+    print("\n Error: " + str((diff/p2)*100) + "%")
 
 
 @pytest.mark.asyncio

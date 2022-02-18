@@ -26,21 +26,14 @@ API_KEY = config('API_KEY')
 cw.api_key = API_KEY
 
 OWNER_PRIV_KEY = int(config('OWNER_PRIV_KEY'))
-# MODERATOR_PRIV_KEY = int(config('MODERATOR_PRIV_KEY'))
 EXTERNAL_ORACLE_PRIV_KEY = int(config('EXTERNAL_ORACLE_PRIV_KEY'))
 
-
-account_abi = Path("artifacts/abis/Account.json").read_text()
-account_abi = ast.literal_eval(account_abi)
 
 data_source_abi = Path("artifacts/abis/DataSource.json").read_text()
 data_source_abi = ast.literal_eval(data_source_abi)
 
 main_oracle_abi = Path("artifacts/abis/MainOracle.json").read_text()
 main_oracle_abi = ast.literal_eval(main_oracle_abi)
-
-aggregator_abi = Path("artifacts/abis/Aggregator.json").read_text()
-aggregator_abi = ast.literal_eval(aggregator_abi)
 
 
 @dataclass
@@ -54,12 +47,10 @@ class KeyPair:
 
 
 owner_addr = "0x05e8e3ffb034bb955aa73bc58d47f8126e9664c5398d0307fbd6dc54f10d867c"
-# moderator_addr = "0x06adb833832f37235712c11620042b40e535bf99e9e37d577d484a91e0d15bdd"
-external_oracle_addr = "0x0419186ee3da4f00da8b9ced6c5d4e46867e2a5fb546fe8dbdf2346a550d9a46"
+external_oracle_addr = "0x07d10fb304e6752b577c1f0b85bdab549c937320f13175c36f623735ad3737ef"
 
-data_source_addr = "0x01ff6bac95b035983b359c21ba5eef8cf2f901750e02be476d0359723384f807"
-aggregator_addr = "0x0713e5351b9f8b4c0be5132d4df8b5c07f90f56589c70d979a20d0c8dac4a468"
-main_oracle_addr = "0x077d70364e74ad1dfe979751f583fbff5e0543e7dfff9ddc7b2f6a4540c3afdc"
+data_source_addr = "0x07f294c1b283fe0ed3fe8b2cbfc5f107050d827e1e40d5cdaf4001c85f600be7"
+main_oracle_addr = "0x03e8cc88d807820c4d7ad76c8f615dcbb9db0408a9318666dd114b388263369a"
 
 
 oracle_key_pair = KeyPair.from_private_key(EXTERNAL_ORACLE_PRIV_KEY)
@@ -86,7 +77,6 @@ async def set_and_update_prices(multiplied_prices):
 
     invocation = await data_source.functions["set_prices"].invoke(multiplied_prices)
     res = await invocation.wait_for_acceptance()
-    print("invocation: " + str(res.hash))
 
 
 async def get_prices():
@@ -118,7 +108,7 @@ async def get_prices():
             results[asset] = price
 
     asset_prices = {k: results[k] for k in sorted(results)}
-    multiplied_prices = [int(price * math.pow(10, 8))
+    multiplied_prices = [int(price * math.pow(10, 6))
                          for price in list(asset_prices.values())]
 
     return multiplied_prices

@@ -1,0 +1,137 @@
+[
+    {
+        "members": [
+            {
+                "name": "low",
+                "offset": 0,
+                "type": "felt"
+            },
+            {
+                "name": "high",
+                "offset": 1,
+                "type": "felt"
+            }
+        ],
+        "name": "Uint256",
+        "size": 2,
+        "type": "struct"
+    },
+    {
+        "inputs": [
+            {
+                "name": "idxs_len",
+                "type": "felt"
+            },
+            {
+                "name": "decimals_",
+                "type": "felt"
+            },
+            {
+                "name": "external_oracle_address",
+                "type": "felt"
+            }
+        ],
+        "name": "constructor",
+        "outputs": [],
+        "type": "constructor"
+    },
+    {
+        "inputs": [
+            {
+                "name": "prices_len",
+                "type": "felt"
+            },
+            {
+                "name": "prices",
+                "type": "felt*"
+            }
+        ],
+        "name": "set_prices",
+        "outputs": [],
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "main_oracle_address",
+                "type": "felt"
+            }
+        ],
+        "name": "set_oracle_address",
+        "outputs": [],
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "id",
+                "type": "felt"
+            }
+        ],
+        "name": "read_price",
+        "outputs": [
+            {
+                "name": "identifier",
+                "type": "felt"
+            },
+            {
+                "name": "price",
+                "type": "Uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "get_indexes_len",
+        "outputs": [
+            {
+                "name": "idxs_len",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "get_decimals",
+        "outputs": [
+            {
+                "name": "decimals",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "get_timestamp",
+        "outputs": [
+            {
+                "name": "timestamp",
+                "type": "felt"
+            },
+            {
+                "name": "block_number",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "get_round",
+        "outputs": [
+            {
+                "name": "roundId",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    }
+]
