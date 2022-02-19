@@ -21,7 +21,7 @@ base_to_quote_price(base : felt, quote : felt) -> Returns the latest base price 
 ```
 
 ### NOTE:
-__Prices returned by the oracle are multiplied by 10**6__
+__Prices returned by the oracle are multiplied by 10**6 because cairo doesn't support decimal numbers__
 
 
 
