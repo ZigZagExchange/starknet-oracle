@@ -2,9 +2,17 @@
 
 ![zigzag](https://user-images.githubusercontent.com/57314871/154353264-211a4030-8f5d-4aa8-878f-f654fa242589.png)
 
+
 ---
 
 ## USAGE
+
+
+
+### ADDRESS
+
+**MainOracle** = 0x03e8cc88d807820c4d7ad76c8f615dcbb9db0408a9318666dd114b388263369a
+
 
 
 ### Functions:
@@ -88,14 +96,6 @@ __starknet_py__:         ` pip install starknet.py `
 
 ---
 
-
-### ADDRESSES
-
-**DataSource** = 0x07f294c1b283fe0ed3fe8b2cbfc5f107050d827e1e40d5cdaf4001c85f600be7
-
-**Aggregator** = 0x065363a0dd62a90189d9fb718a970ede04238f36d6da7dc8e9ef2b0e63c86aa2
-
-**MainOracle** = 0x03e8cc88d807820c4d7ad76c8f615dcbb9db0408a9318666dd114b388263369a
 
 
 
