@@ -1,5 +1,7 @@
 import pytest
 import asyncio
+import requests
+import time
 
 from starknet_py.net.client import Client
 from starknet_py.contract import Contract
@@ -32,7 +34,44 @@ oracle_functions = ["latest_timestamp", "latest_block_number", "latest_round",
 async def test_main_logic(contract_factory):
     main_oracle = contract_factory
 
-    # Test oracle_functions by changing the index (3)
-    res1 = await main_oracle.functions[oracle_functions[3]].call(14)
+    total_err = 0
+    num_steps = 0
 
-    print(res1.price/10**6)
+    while True:
+
+        res1 = await main_oracle.functions[oracle_functions[3]].call(14)
+
+        r2 = requests.get(
+            "https://api.cryptowat.ch/markets/coinbase-pro/ethusd/price")
+        price = r2.json()["result"]["price"]
+
+        diff = abs(res1.price/10**6 - price)
+        error = diff / price
+
+        total_err += error
+        num_steps += 1
+        avg_err = total_err / num_steps
+
+        print(f"{oracle_functions[3]} error: {error}")
+        print(f"{oracle_functions[3]} avg_error: {avg_err}")
+        await asyncio.sleep(3)
+
+
+# async def main(main_oracle):
+
+#     res1 = await main_oracle.functions[oracle_functions[3]].call(14)
+
+#     r2 = requests.get(
+#         "https://api.cryptowat.ch/markets/coinbase-pro/ethusd/price")
+#     price = r2.json()["result"]["price"]
+
+#     diff = abs(res1.price/10**6 - price)
+#     error = diff / price
+
+#     update_err(error)
+#     avg_err = read_err()
+
+#     print(f"{oracle_functions[3]} error: {error}")
+#     print(f"{oracle_functions[3]} avg_error: {avg_err}")
+
+#     await asyncio.sleep(10)

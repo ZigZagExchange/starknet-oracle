@@ -35,6 +35,9 @@ data_source_abi = ast.literal_eval(data_source_abi)
 main_oracle_abi = Path("artifacts/abis/MainOracle.json").read_text()
 main_oracle_abi = ast.literal_eval(main_oracle_abi)
 
+account_abi = Path("artifacts/abis/MainOracle.json").read_text()
+account_abi = ast.literal_eval(main_oracle_abi)
+
 
 @dataclass
 class KeyPair:
@@ -77,6 +80,7 @@ async def set_and_update_prices(multiplied_prices):
 
     invocation = await data_source.functions["set_prices"].invoke(multiplied_prices)
     res = await invocation.wait_for_acceptance()
+    # print(res)
 
 
 async def get_prices():
@@ -121,7 +125,7 @@ async def main():
 
     task = asyncio.Task(set_and_update_prices(multiplied_prices))
 
-    await asyncio.sleep(15)
+    await asyncio.sleep(75)
 
 
 if __name__ == '__main__':

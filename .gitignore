@@ -2,10 +2,13 @@ artifacts/
 node_modules/
 
 .env
-notes.txt
 .pytest_cache
 .vscode
+.MakeFile
 
+.external_oracle.py
+
+notes/
 tests/__pycache__/
 
 tests/local_tests/__pycache__/

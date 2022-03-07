@@ -67,12 +67,9 @@ end
 
 @constructor
 func constructor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-        owner_address : felt, moderator_address : felt, external_oracle_address : felt,
-        aggregator_address : felt):
+        owner_address : felt, external_oracle_address : felt, aggregator_address : felt):
     set_access_controlls(
-        owner_address=owner_address,
-        moderator_address=moderator_address,
-        external_oracle_address=external_oracle_address)
+        owner_address=owner_address, external_oracle_address=external_oracle_address)
 
     initialize_aggregator(aggregator_address)
 
