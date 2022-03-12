@@ -14,7 +14,7 @@ moderator = Signer(222222222222222222222)
 external_oracle = Signer(333333333333333333333)
 
 # Enables modules.
-acc_path = "contracts/OpenZepplin/contracts/Account.cairo"
+acc_path = "contracts/Accounts/account.cairo"
 
 asset_prices = {
     "maticusdt": 1.8808976391666665,

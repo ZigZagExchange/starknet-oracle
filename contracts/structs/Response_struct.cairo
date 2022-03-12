@@ -9,5 +9,5 @@ struct Response:
     member answer : Uint256  # price reurned by request
     member timestamp : felt  # timestamp when request was received
     member block_number : felt  # block_number when request was received
-    member data_source_address : felt  # address of where the data is coming from (will be useful later)
+    member transmitter : felt  # address of where the data is coming from (will be useful later)
 end

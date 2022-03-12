@@ -8,14 +8,16 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.uint256 import (
     Uint256, uint256_add, uint256_sub, uint256_le, uint256_lt, uint256_mul, uint256_check)
 from starkware.cairo.common.hash import hash2
-from starkware.cairo.common.math import assert_not_zero, assert_le, assert_lt, unsigned_div_rem
+from starkware.cairo.common.math import (
+    assert_not_zero, assert_le, assert_lt, unsigned_div_rem, split_felt)
 
-from contracts.utils.AccessControlls import only_owner
+from contracts.utils.AccessControlls import set_access_controlls, only_owner
 from contracts.libraries.Hexadecimals import (
-    input_array_to_hex_array, decimal_to_hex_array, splice_array, hex_array_to_decimal)
+    hex64_to_array, splice_array, hex_array_to_decimal, decimal_to_hex_array)
 from contracts.Chainlink.utils import (
     check_for_duplicates, verify_all_signatures, assert_array_sorted, check_config_valid,
-    config_digest_from_config_data, hash_array)
+    config_digest_from_config_data, hash_report)
+from contracts.structs.Response_struct import Response
 
 struct HotVars:
     member latestConfigDigest : felt
@@ -27,6 +29,8 @@ end
 struct Transmission:
     member answer : felt
     member timestamp : felt
+    member block_number : felt
+    member transmitter : felt
 end
 
 struct Oracle:
@@ -45,8 +49,7 @@ func config_set(
 end
 
 @event
-func round_requested(
-        requester : felt, configDigest : felt, epoch : felt, round : felt, transmitters_len : felt):
+func round_requested(requester : felt, configDigest : felt, epoch : felt, round : felt):
 end
 
 @event
@@ -118,15 +121,21 @@ end
 func s_decimals() -> (res : felt):
 end
 
+@storage_var
+func s_description() -> (res : felt):
+end
+
 # # ===========================================================================================
 # # CONSTRUCTOR
 
 @constructor
 func constructor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-        _minAnswer : felt, _maxAnswer : felt, _decimals : felt):
+        _minAnswer : felt, _maxAnswer : felt, _decimals : felt, owner : felt, _description : felt):
+    set_access_controlls(owner)
     s_decimals.write(_decimals)
     s_minAnswer.write(_minAnswer)
     s_maxAnswer.write(_maxAnswer)
+    s_description.write(_description)
     return ()
 end
 
@@ -134,9 +143,28 @@ end
 # # SETTERS  (add request new round functionality)
 
 @external
+func requestNewRound{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (res):
+    alloc_locals
+    # only_owner()
+
+    let (msg_sender : felt) = get_caller_address()
+    let (config_digest : felt) = s_latestConfigDigest.read()
+    let (epoch_and_round) = s_latestEpochAndRound.read()
+    let (epoch, round) = unsigned_div_rem(epoch_and_round, 16 ** 2)
+    let (timestamp) = latestTimestamp()
+
+    round_requested.emit(requester=msg_sender, configDigest=config_digest, epoch=epoch, round=round)
+
+    let (roundId : felt) = s_latestAggregatorRoundId.read()
+
+    return (roundId + 1)
+end
+
+# @argument _encoded could be an array
+@external
 func set_config{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
         _signers_len : felt, _signers : felt*, _transmitters_len : felt, _transmitters : felt*,
-        _threshold : felt, _encodedConfigVersion : felt, _encoded : felt):
+        _threshold : felt, _encodedConfigVersion : felt, _encoded : felt) -> (a, b):
     alloc_locals
     check_config_valid(_signers_len, _transmitters_len, _threshold)
     # only_owner()
@@ -157,7 +185,7 @@ func set_config{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_pt
 
     let (contract_address : felt) = get_contract_address()
 
-    let (config_digest : felt) = config_digest_from_config_data(
+    let (digest : felt) = config_digest_from_config_data(
         contract_address,
         config_count + 1,
         _signers_len,
@@ -167,6 +195,8 @@ func set_config{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_pt
         _threshold,
         _encodedConfigVersion,
         _encoded)
+
+    let (_, config_digest) = split_felt(digest)
 
     s_latestConfigDigest.write(config_digest)
     s_latestEpochAndRound.write(0)
@@ -182,19 +212,19 @@ func set_config{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_pt
         _encodedConfigVersion,
         _encoded)
 
-    return ()
+    return (digest, config_digest)
 end
 
 @external
 func transmit{
         syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr,
         ecdsa_ptr : SignatureBuiltin*}(
-        raw_report_context : felt, raw_observers : (felt, felt), observations_len : felt,
+        raw_report_context : felt, raw_observers : felt, observations_len : felt,
         observations : felt*, r_sigs_len : felt, r_sigs : felt*, s_sigs_len : felt, s_sigs : felt*,
-        public_keys_len : felt, public_keys : felt*) -> ():
+        public_keys_len : felt, public_keys : felt*) -> (res):
     alloc_locals
 
-    let (hex_rrc_len, hex_rrc : felt*) = decimal_to_hex_array((0, raw_report_context))
+    let (hex_rrc_len, hex_rrc : felt*) = decimal_to_hex_array(raw_report_context)
 
     let (conf_digest_len, conf_digest : felt*) = splice_array(hex_rrc_len, hex_rrc, 22, 54)
     let (epoch_and_round_len, epoch_and_round : felt*) = splice_array(hex_rrc_len, hex_rrc, 54, 64)
@@ -238,12 +268,10 @@ func transmit{
 
     # ......................................................
 
-    let (hash : felt) = hash2{hash_ptr=pedersen_ptr}(raw_report_context, raw_observers[0])
-    let (hash : felt) = hash2{hash_ptr=pedersen_ptr}(hash, raw_observers[1])
-    let (hash : felt) = hash_array(observations_len, observations, hash)
+    let (msg_hash) = hash_report(raw_report_context, raw_observers, observations_len, observations)
 
     verify_all_signatures(
-        hash, r_sigs_len, r_sigs, s_sigs_len, s_sigs, public_keys_len, public_keys)
+        msg_hash, r_sigs_len, r_sigs, s_sigs_len, s_sigs, public_keys_len, public_keys)
 
     # ......................................................
 
@@ -256,7 +284,9 @@ func transmit{
     s_latestAggregatorRoundId.write(latest_round_id + 1)
 
     let (timestamp : felt) = get_block_timestamp()
-    s_transmissions.write(roundId=latest_round_id, value=Transmission(median, timestamp))
+    let (block_num : felt) = get_block_number()
+    s_transmissions.write(
+        roundId=latest_round_id + 1, value=Transmission(median, timestamp, block_num, msg_sender))
 
     # ......................................................
 
@@ -272,7 +302,7 @@ func transmit{
 
     # ......................................................
 
-    return ()
+    return (1)
 end
 
 # # ===========================================================================================
@@ -291,6 +321,22 @@ func latestConfigDetails{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range
 end
 
 @view
+func latestTransmissionDetails{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+        ) -> (
+        config_digest : felt, epoch : felt, round : felt, latest_answer : felt,
+        latest_timestamp : felt):
+    alloc_locals
+
+    let (config_digest : felt) = s_latestConfigDigest.read()
+    let (epoch_and_round) = s_latestEpochAndRound.read()
+    let (epoch, round) = unsigned_div_rem(epoch_and_round, 16 ** 2)
+    let (answer) = latestAnswer()
+    let (timestamp) = latestTimestamp()
+
+    return (config_digest, epoch, round, answer, timestamp)
+end
+
+@view
 func transmitters{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
         transmitters_len : felt, transmitters : felt*):
     alloc_locals
@@ -303,10 +349,111 @@ func transmitters{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_
     return (transmitters_len, transmitters)
 end
 
-# # ===========================================================================================
-# # HELPERS  (remove @view after testing)
+@view
+func latestAnswer{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
+        res : felt):
+    alloc_locals
+
+    let (roundId : felt) = s_latestAggregatorRoundId.read()
+    let (transmission : Transmission) = s_transmissions.read(roundId)
+
+    return (transmission.answer)
+end
 
 @view
+func latestTimestamp{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
+        res : felt):
+    alloc_locals
+
+    let (roundId : felt) = s_latestAggregatorRoundId.read()
+    let (transmission : Transmission) = s_transmissions.read(roundId)
+
+    return (transmission.timestamp)
+end
+
+@view
+func latestRound{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
+        res : felt):
+    alloc_locals
+
+    let (roundId : felt) = s_latestAggregatorRoundId.read()
+
+    return (roundId)
+end
+
+@view
+func getAnswer{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+        roundId : felt) -> (res : felt):
+    alloc_locals
+
+    let (transmission : Transmission) = s_transmissions.read(roundId)
+
+    return (transmission.answer)
+end
+
+@view
+func getTimestamp{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+        roundId : felt) -> (res : felt):
+    alloc_locals
+
+    let (transmission : Transmission) = s_transmissions.read(roundId)
+
+    return (transmission.timestamp)
+end
+
+@view
+func getRoundData{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+        roundId : felt) -> (res : Response):
+    alloc_locals
+
+    let (transmission : Transmission) = s_transmissions.read(roundId)
+
+    let identifier = 0  # hash of symbol or something
+    let (high, low) = split_felt(transmission.answer)
+    let answer = Uint256(low=low, high=high)
+    let response = Response(
+        roundId,
+        identifier,
+        answer,
+        transmission.timestamp,
+        transmission.block_number,
+        transmission.transmitter)
+
+    return (response)
+end
+
+@view
+func latestRoundData{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
+        res : Response):
+    alloc_locals
+
+    let (roundId : felt) = s_latestAggregatorRoundId.read()
+
+    return getRoundData(roundId)
+end
+
+@view
+func description{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
+        res : felt):
+    alloc_locals
+
+    let (description) = s_description.read()
+
+    return (description)
+end
+
+@view
+func decimals{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (res : felt):
+    alloc_locals
+
+    let (decimals) = s_decimals.read()
+
+    return (decimals)
+end
+
+# # ===========================================================================================
+# # HELPERS
+
 func remove_signers_transmitters{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
         signers_len : felt):
     if signers_len == 0:
@@ -326,7 +473,6 @@ func remove_signers_transmitters{syscall_ptr : felt*, pedersen_ptr : HashBuiltin
     return remove_signers_transmitters(signers_len - 1)
 end
 
-@view
 func add_signers_transmitters{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
         signers_len : felt, signers : felt*, transmitters_len : felt, transmitters : felt*,
         total : felt):

@@ -4,9 +4,9 @@ node_modules/
 .env
 .pytest_cache
 .vscode
-.MakeFile
+MakeFile
 
-.external_oracle.py
+external_oracle.py
 
 notes/
 tests/__pycache__/

@@ -8,13 +8,13 @@ from starkware.cairo.common.hash import hash2
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.uint256 import Uint256
 from starkware.cairo.common.signature import verify_ecdsa_signature
-from starkware.cairo.common.math import unsigned_div_rem, assert_le
+from starkware.cairo.common.math import unsigned_div_rem, assert_le, split_int
 from starkware.cairo.common.math_cmp import is_le
 from starkware.cairo.common.pow import pow
 
 from contracts.libraries.Math64x61 import (
     Math64x61_to64x61, Math64x61_from64x61, Math64x61_mul, Math64x61_div, Math64x61_pow)
-# from contracts.Chainlink.utils import check_for_duplicates
+from contracts.libraries.Hexadecimals import decimal_to_hex_array, hex64_to_array
 
 func make_array{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
         _prices_len : felt, _prices : Uint256*, count) -> (prices_len : felt, prices : Uint256*):
@@ -47,13 +47,11 @@ end
 func test_verify_all_sigs{
         syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr,
         ecdsa_ptr : SignatureBuiltin*}(
-        rrc : felt, robs : (felt, felt), obs_len : felt, obs : felt*, r_sigs_len : felt,
-        r_sigs : felt*, s_sigs_len : felt, s_sigs : felt*, public_keys_len : felt,
-        public_keys : felt*) -> ():
+        rrc : felt, robs : felt, obs_len : felt, obs : felt*, r_sigs_len : felt, r_sigs : felt*,
+        s_sigs_len : felt, s_sigs : felt*, public_keys_len : felt, public_keys : felt*) -> ():
     alloc_locals
 
-    let (hash : felt) = hash2{hash_ptr=pedersen_ptr}(rrc, robs[0])
-    let (hash : felt) = hash2{hash_ptr=pedersen_ptr}(hash, robs[1])
+    let (hash : felt) = hash2{hash_ptr=pedersen_ptr}(rrc, robs)
     let (hash : felt) = hash_array(obs_len, obs, hash)
 
     test_verify_all_sigs_inner(
@@ -119,6 +117,15 @@ func assert_array_sorted{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range
     end
 
     return assert_array_sorted(arr_len - 1, &arr[1])
+end
+
+@view
+func test_decimal_to_hex_array{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+        num : felt) -> (arr_len : felt, arr : felt*):
+    let (arr_len : felt, arr : felt*) = decimal_to_hex_array(num)
+    # let (arr_len : felt, arr : felt*) = hex64_to_array(num)
+
+    return (arr_len, arr)
 end
 
 # ==========================================================================================================
@@ -209,4 +216,16 @@ func hash_array{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_pt
     let (hash : felt) = hash2{hash_ptr=pedersen_ptr}(hash, arr[0])
 
     return hash_array(arr_len - 1, &arr[1], hash)
+end
+
+# ==================================================================================================
+
+@view
+func test_hexes{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
+        hex : felt):
+    alloc_locals
+
+    let hex = 0x09080e0c190b0307021a051d141e121615131b0f0106110d00181c04101700001233453452122212123
+
+    return (hex)
 end

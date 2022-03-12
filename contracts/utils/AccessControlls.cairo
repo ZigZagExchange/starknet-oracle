@@ -25,17 +25,17 @@ func external_oracle() -> (res : felt):
 end
 
 func set_access_controlls{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-        owner_address : felt, external_oracle_address : felt):
+        owner_address : felt):
     # check addresses are valid (for now not zero)
     assert_not_zero(owner_address)
-    assert_not_zero(external_oracle_address)
+    # assert_not_zero(external_oracle_address)
 
     owner.write(value=owner_address)
-    external_oracle.write(value=external_oracle_address)
+    # external_oracle.write(value=external_oracle_address)
 
     let (block_number) = get_block_number()
     access_controlls_initialized.emit(
-        owner=owner_address, external_oracle=external_oracle_address, block_number=block_number)
+        owner=owner_address, external_oracle=0, block_number=block_number)
 
     return ()
 end

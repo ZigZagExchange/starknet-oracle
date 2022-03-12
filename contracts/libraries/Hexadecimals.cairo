@@ -5,13 +5,24 @@ from starkware.cairo.common.math_cmp import is_le, is_not_zero
 from starkware.cairo.common.pow import pow
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.math import (
-    assert_le, assert_lt, sqrt, sign, abs_value, signed_div_rem, unsigned_div_rem, assert_not_zero)
+    assert_le, assert_lt, sqrt, sign, abs_value, signed_div_rem, unsigned_div_rem, assert_not_zero,
+    split_felt)
 
-# MAX_NUM = maximal 32 bytes long hex number
-# const MAX_NUM = 115792089237316195423570985008687907853269984665640564039457584007913129639935
+func decimal_to_hex_array{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+        num : felt) -> (new_arr_len : felt, new_arr : felt*):
+    alloc_locals
+
+    let (local arr : felt*) = alloc()
+
+    let (high, low) = split_felt(num)
+
+    split_hex_loop(high, low, 16, 0, arr, 0)
+
+    return (64, arr)
+end
 
 func input_array_to_hex_array{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-        arr_len : felt, arr : (felt, felt)*, new_arr_len : felt, new_arr : felt*) -> (
+        arr_len : felt, arr : felt*, new_arr_len : felt, new_arr : felt*) -> (
         new_arr_len : felt, new_arr : felt*):
     alloc_locals
 
@@ -19,9 +30,6 @@ func input_array_to_hex_array{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, 
     if arr_len == 0:
         return (new_arr_len, new_arr)
     end
-
-    let high = arr[new_arr_len][0]
-    let low = arr[new_arr_len][1]
 
     let (a_len, a : felt*) = decimal_to_hex_array(arr[new_arr_len])
 
@@ -33,7 +41,7 @@ end
 
 # @param num is a tuple containing the high and low part,
 # where the high part is the first half of the hex string and low is the second
-func decimal_to_hex_array{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+func hex64_to_array{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
         num : (felt, felt)) -> (res_len : felt, res : felt*):
     alloc_locals
 
@@ -42,10 +50,14 @@ func decimal_to_hex_array{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, rang
     let high = num[0]
     let low = num[1]
 
+    # assert high and low are below 16**32
+
     split_hex_loop(high, low, 16, 0, arr, 0)
 
     return (64, arr)
 end
+
+# ==================================================================================================
 
 func split_hex_loop{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
         a : felt, b : felt, n : felt, arr_len : felt, arr : felt*, count : felt) -> ():
@@ -56,6 +68,7 @@ func split_hex_loop{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_chec
         return ()
     end
 
+    # TODO Change this with functions from cairo.math for splitting
     let (devisor : felt) = pow(16, n)
     let (q1, r1) = unsigned_div_rem(a, devisor)
     let (q2, r2) = unsigned_div_rem(b, devisor)
@@ -67,6 +80,8 @@ func split_hex_loop{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_chec
 
     return ()
 end
+
+# ..................................................................................
 
 func splice_array{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
         arr_len : felt, arr : felt*, start : felt, stop : felt) -> (
@@ -89,6 +104,8 @@ func splice_array_inner{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_
 
     return splice_array_inner(arr_len, arr, start + 1, stop, new_arr_len + 1, new_arr)
 end
+
+# ==================================================================================================
 
 func hex_array_to_decimal{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
         arr_len : felt, arr : felt*) -> (res : felt):

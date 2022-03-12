@@ -1,51 +1,15 @@
 from copyreg import constructor
 import math
+import random
 import pytest
 import asyncio
 import json
 
 from starkware.starknet.testing.starknet import Starknet
-from starkware.starknet.testing.contract import StarknetContract
+from starkware.cairo.common.hash_state import compute_hash_on_elements
 
-from utils import Signer
+from utils import Signer, Transmitter
 
-owner = Signer(111111111111111111111)
-
-# ============   ============   ============   ==============   ==============
-
-signer1 = "0x17631c78189801f795c548f8c18787ef9e79d98ed4cadbda610501ee5b02ae18"
-signer2 = "0x797d48b7eea5e2c691d978b68e42f614d903b5fe072cde78055934f021caa6f7"
-signer3 = "0x98190e18fff5c5d755a40084034be4b294ef7a8d346565028d097f8196455268"
-signer4 = "0xc45bcc428670b2548268cb1138732e89646f0ef494a8d6432d635ae3b6487e49"
-signer5 = "0xf943c5c8fa0e12e139942cf452717e1b4943c75738a23e5518b070deed77995a"
-signer6 = "0x989dfcc07a520100c68196cc49c9d077654658134175df6aa8296e3afd2e7bcc"
-signer7 = "0xdffa6c7fb333c45b26c055b601690c20f5257e91f1571e7309387b84bedf2c29"
-signer8 = "0x717a4e95497a435583587898ab7fc3b782f4a2e3bca36805f241fcc5c918d974"
-signer9 = "0xc48d8f7eff6ccf6f0df32a36b8e743c1af3d2efa1bef8b317ae42895d9116195"
-signer10 = "0x208f1d42f53483403dbab0593be7431b59b35b5011fe8edf1449c7c73bde7e84"
-
-transmitter1 = "0x7140fe27897e9b8101cddf2d2a223c81de629dfea994e4fe188003ba79be88ae"
-transmitter2 = "0x4b107cd499622c0cc149a3621cb1bb091c60e111d058eb8bcd8799218b79e6f8"
-transmitter3 = "0x4868d4ca4ccdfc19c250179bf37cefa54d13d884c101bfd11d88afc3601f9a30"
-transmitter4 = "0x8c3f20074aaf07732592e07102494c28997d6f5989c9f7d412e70d54c8b08cdc"
-transmitter5 = "0xfb2009f0b894fceea51ad700356f07df8f8973af40219df1db6a87698874270c"
-transmitter6 = "0xf99b2f5acdcc527189e4d9dce2e2dae5ae3902a3c7eee878864da172af0a3afb"
-transmitter7 = "0x9b0ee9bac840ddc85004168a508f535a2aa45ec1b18c0df400ac65c85f9376ea"
-transmitter8 = "0x56c993462dc007b7ac3f0124027227a2a7e32044d90021c2ea4af4c6a5fd7e7d"
-transmitter9 = "0x14e00f6078968a51d30d54d5de940c3ec3de87279488a49cfdeaca1d92bf9fda"
-transmitter10 = "0xb7209f4d8e735a95c8e6ebac0780af4e43cb5c818f4b210e851af9b4aed7334d"
-
-signers = [int(signer1, 16)//100, int(signer2, 16)//100,
-           int(signer3, 16)//100, int(signer4, 16)//100,
-           int(signer5, 16)//100, int(signer6, 16)//100,
-           int(signer7, 16)//100, int(signer8, 16)//100,
-           int(signer9, 16)//100, int(signer10, 16)//100]
-
-transmitters = [int(transmitter1, 16)//100, int(transmitter2, 16)//100,
-                int(transmitter3, 16)//100, int(transmitter4, 16)//100,
-                int(transmitter5, 16)//100, int(transmitter6, 16)//100,
-                int(transmitter7, 16)//100, int(transmitter8, 16)//100,
-                int(transmitter9, 16)//100, int(transmitter10, 16)//100]
 
 # ============   ============   ============   ==============   ==============
 file_path = "tests/dummy_data/dummy_calldata.json"
@@ -53,21 +17,42 @@ f = open(file_path, 'r')
 calldata = json.load(f)
 f.close()
 
-msg_hash = calldata["cairo-calldata"]["msg_hash"]
 rawReportContext = calldata["cairo-calldata"]["rawReportContext"]
 rawObservers = calldata["cairo-calldata"]["rawObservers"]
-r_sigs = calldata["cairo-calldata"]["r_sigs"]
-s_sigs = calldata["cairo-calldata"]["s_sigs"]
-public_keys = calldata["cairo-calldata"]["public_keys"]
-observations = calldata["cairo-calldata"]["observations"]
+signer_pub_keys = calldata["cairo-calldata"]["signer_public_keys"]
+transmitter_pub_keys = calldata["cairo-calldata"]["transmitter_public_keys"]
+transmitter_priv_keys = calldata["cairo-calldata"]["transmitter_private_keys"]
+
+r_sigs1 = calldata["cairo-calldata"]["calldata1"]["r_sigs"]
+s_sigs1 = calldata["cairo-calldata"]["calldata1"]["s_sigs"]
+observations1 = calldata["cairo-calldata"]["calldata1"]["observations"]
+
+r_sigs2 = calldata["cairo-calldata"]["calldata2"]["r_sigs"]
+s_sigs2 = calldata["cairo-calldata"]["calldata2"]["s_sigs"]
+observations2 = calldata["cairo-calldata"]["calldata2"]["observations"]
+
+r_sigs3 = calldata["cairo-calldata"]["calldata3"]["r_sigs"]
+s_sigs3 = calldata["cairo-calldata"]["calldata3"]["s_sigs"]
+observations3 = calldata["cairo-calldata"]["calldata3"]["observations"]
 # ============   ============   ============   ==============   ==============
 
+owner = Signer(111111111111111111111)
+transmitter = Transmitter(transmitter_priv_keys[0])
+transmitter2 = Transmitter(transmitter_priv_keys[1])
+transmitter3 = Transmitter(transmitter_priv_keys[2])
 
-signers2 = [x*2//3 for x in signers]
-transmitters2 = [x*2//3 for x in transmitters]
 
-acc_path = "contracts/OpenZepplin/contracts/Account.cairo"
+signers2 = [x*2//3 for x in signer_pub_keys]
+transmitters2 = [x*2//3 for x in transmitter_pub_keys]
+
+acc_path = "contracts/Accounts/Account.cairo"
+transmitter_path = "contracts/Accounts/Transmitter.cairo"
 ofc_agg_path = "contracts/Chainlink/OffchainAggregator.cairo"
+
+
+ETHUSD_hex = 0x4554482f555344
+BNBUSD_hex = 0x424e422f555344
+LUNAUSD_hex = 0x4c554e412f555344
 
 
 @pytest.fixture(scope='module')
@@ -79,83 +64,126 @@ def event_loop():
 async def contract_factory():
     starknet = await Starknet.empty()
 
-    ofc_agg_contract = await starknet.deploy(
-        ofc_agg_path,
-        constructor_calldata=[10**8, 10**11, 8]
-    )
-
     owner_acc = await starknet.deploy(
         acc_path,
         constructor_calldata=[owner.public_key]
     )
 
-    await ofc_agg_contract.set_config(
-        signers, transmitters, 3, 12345678, 987654321).invoke()
+    ofc_agg_contract = await starknet.deploy(
+        ofc_agg_path,
+        constructor_calldata=[10**8, 10**11, 8,
+                              owner_acc.contract_address, ETHUSD_hex]
+    )
 
-    return starknet, ofc_agg_contract, owner_acc
+    transmitter_acc = await starknet.deploy(
+        transmitter_path,
+        constructor_calldata=[transmitter_pub_keys[0]]
+    )
+
+    encoded_config = 12345678987654321
+    await ofc_agg_contract.set_config(
+        signer_pub_keys,
+        [transmitter_acc.contract_address] + transmitter_pub_keys[1:],
+        10, 1, encoded_config).invoke()
+
+    return starknet, ofc_agg_contract, transmitter_acc, owner_acc
 
 
 @pytest.mark.asyncio
 async def test_main_logic(contract_factory):
-    starknet, ofc_agg_contract, owner_acc = contract_factory
+    starknet, ofc_agg_contract, transmitter_acc, owner_acc = contract_factory
 
-    res = await ofc_agg_contract.transmit(
-        int(rawReportContext, 16),
-        (int(rawObservers[:32], 16),
-         int(rawObservers[32:], 16)),
-        observations,
-        r_sigs,
-        s_sigs,
-        public_keys,
-    ).invoke()
 
-    print(res.result)
+@pytest.mark.asyncio
+async def test_transmit(contract_factory):
+    starknet, ofc_agg_contract, transmitter_acc, owner_acc = contract_factory
+
+    calldata = [int(rawReportContext, 16),
+                int(rawObservers[:60], 16),
+                observations1,
+                r_sigs1,
+                s_sigs1,
+                signer_pub_keys]
+
+    res = await transmitter.send_transaction(
+        account=transmitter_acc,
+        to=ofc_agg_contract.contract_address,
+        selector_name='transmit',
+        calldata=calldata)
+
+    # calldata_list = [int(rawReportContext, 16), int(
+    #     rawObservers[:60], 16)] + observations1
+
+    # h = compute_hash_on_elements(calldata_list)
+
+    # print("hash: ", h)
+    print("\n", res.result)
+
+
+@ pytest.mark.asyncio
+async def test_ofc_getters(contract_factory):
+    starknet, ofc_agg_contract, transmitter_acc, owner_acc = contract_factory
+
+    res = await ofc_agg_contract.latestRound().call()
+    res2 = await ofc_agg_contract.latestAnswer().call()
+
+    print("\n", res.result)
+    print("\n", res2.result)
 
 
 @pytest.mark.asyncio
 async def test_set_config_signers_transmitters(contract_factory):
-    starknet, ofc_agg_contract, owner_acc = contract_factory
+    starknet, ofc_agg_contract, transmitter_acc, owner_acc = contract_factory
 
-    await ofc_agg_contract.set_config(
-        signers, transmitters, 3, 12345678, 987654321).invoke()
-
-    for i in range(len(signers)):
+    for i in range(len(signer_pub_keys)):
         s = await ofc_agg_contract.get_signer(i).call()
         t = await ofc_agg_contract.get_transmitter(i).call()
-        assert s.result.signer == signers[len(signers) - i-1]
-        assert t.result.transmitter == transmitters[len(signers) - i-1]
+        assert s.result.signer == signer_pub_keys[len(signer_pub_keys) - i-1]
+        assert t.result.transmitter == transmitter_pub_keys[len(
+            signer_pub_keys) - i-1]
 
+    encoded_config = 12345678987654321
     await ofc_agg_contract.set_config(
-        signers2, transmitters2, 3, 12345678, 987654321).invoke()
-    for i in range(len(signers)):
+        signers2, transmitters2, 10, 2, encoded_config).invoke()
+    for i in range(len(signer_pub_keys)):
         s = await ofc_agg_contract.get_signer(i).call()
         t = await ofc_agg_contract.get_transmitter(i).call()
-        assert s.result.signer == signers2[len(signers) - i-1]
-        assert t.result.transmitter == transmitters2[len(signers) - i-1]
+        assert s.result.signer == signers2[len(signer_pub_keys) - i-1]
+        assert t.result.transmitter == transmitters2[len(
+            signer_pub_keys) - i-1]
 
     print("\n", "test_set_config_singers_transmitters: PASSED")
 
 
 @ pytest.mark.asyncio
-async def test_set_config_other(contract_factory):
-    starknet, ofc_agg_contract, owner_acc = contract_factory
+async def test_set_config(contract_factory):
+    starknet, ofc_agg_contract, transmitter_acc, owner_acc = contract_factory
 
+    encoded_config = 12345678987654321
     res = await ofc_agg_contract.set_config(
-        signers, transmitters, 3, 12345678, 987654321).invoke()
+        signer_pub_keys,
+        [transmitter_acc.contract_address] + transmitter_pub_keys[1:],
+        10, 1, encoded_config).invoke()
 
-    h_vars = await ofc_agg_contract.get_latest_hot_vars_test().call()
-    # conf_count = await ofc_agg_contract.get_configCount().call()
-    # l_bn = await ofc_agg_contract.get_latestConfigBlockNumber().call()
+    # ..................................................
 
-    print("\n", h_vars.result)
+    elements = [ofc_agg_contract.contract_address, 1] + signer_pub_keys + \
+        [transmitter_acc.contract_address] + \
+        transmitter_pub_keys[1:] + [10, 1, encoded_config]
+
+    h = compute_hash_on_elements(elements)
+    _, digest = divmod(h, 2**128)
+
+    print("\n", res.result)
+    print("\n", digest)
 
 
 @ pytest.mark.asyncio
 async def test_config_digest_from_data(contract_factory):
-    starknet, ofc_agg_contract, owner_acc = contract_factory
+    starknet, ofc_agg_contract, transmitter_acc, owner_acc = contract_factory
 
     res = await ofc_agg_contract.config_digest_from_config_data(
-        12892353439029830121023, 3, signers, transmitters, 8,
+        12892353439029830121023, 3, signer_pub_keys, transmitter_pub_keys, 8,
         12092395732124367332797023, 129728432856372493286482).call()
 
     print(res.result.digest)
@@ -163,16 +191,170 @@ async def test_config_digest_from_data(contract_factory):
 
 
 @ pytest.mark.asyncio
-async def test_get_transmitters(contract_factory):
-    starknet, ofc_agg_contract, owner_acc = contract_factory
+async def test_main_oracle(contract_factory):
+    starknet, ofc_agg_contract, transmitter_acc, owner_acc = contract_factory
 
-    res = await ofc_agg_contract.transmitters().call()
+    main_oracle = await starknet.deploy(
+        "contracts/MainOracle.cairo",
+        constructor_calldata=[
+            owner_acc.contract_address,
+            ofc_agg_contract.contract_address,
+        ]
+    )
 
-    for i, transmitter in enumerate(list(res.result.transmitters)):
-        assert transmitter == transmitters[i]
+    calldata = [int(rawReportContext, 16),
+                int(rawObservers[:60], 16),
+                observations1,
+                r_sigs1,
+                s_sigs1,
+                signer_pub_keys]
 
-    print("test_get_transmitters: PASSED")
+    await transmitter.send_transaction(
+        account=transmitter_acc,
+        to=ofc_agg_contract.contract_address,
+        selector_name='transmit',
+        calldata=calldata)
+
+    latestTransmissionDetails = await main_oracle.latestTransmissionDetails().call()
+    transmitters = await main_oracle.transmitters().call()
+    latestAnswer = await main_oracle.latestAnswer().call()
+    latestTimestamp = await main_oracle.latestTimestamp().call()
+    latestRound = await main_oracle.latestRound().call()
+    getAnswer = await main_oracle.getAnswer(1).call()
+    getTimestamp = await main_oracle.getTimestamp(1).call()
+    round_data = await main_oracle.getRoundData(1).call()
+    getRoundData = await main_oracle.getRoundData(1).call()
+    latestRoundData = await main_oracle.latestRoundData().call()
+    description = await main_oracle.description().call()
+    decimals = await main_oracle.decimals().call()
+
+    print("latestTransmissionDetails: ", latestTransmissionDetails.result)
+    print("transmitters: ", transmitters.result)
+    print("latestAnswer: ", latestAnswer.result.res)
+    print("latestTimestamp: ", latestTimestamp.result.res)
+    print("latestRound: ", latestRound.result.res)
+    print("getAnswer: ", getAnswer.result.res)
+    print("getTimestamp: ", getTimestamp.result.res)
+    print("round_data: ", round_data.result.res)
+    print("getRoundData: ", getRoundData.result.res)
+    print("latestRoundData: ", latestRoundData.result.res)
+    print("description: ", description.result.res)
+    print("decimals: ", decimals.result.decimals)
+    print("test_main_oracle: PASSED")
 
 
-def split_hex_64(x):
-    return int(x[:32], 16), int(x[32:], 16)
+@pytest.mark.asyncio
+async def test_transmit_multiple(contract_factory):
+    starknet, eth_agg_contract, transmitter_acc, owner_acc = contract_factory
+
+    bnb_agg_contract = await starknet.deploy(
+        ofc_agg_path,
+        constructor_calldata=[10**7, 10**10, 8,
+                              owner_acc.contract_address, BNBUSD_hex]
+    )
+    luna_agg_contract = await starknet.deploy(
+        ofc_agg_path,
+        constructor_calldata=[10**6, 10**10, 8,
+                              owner_acc.contract_address, LUNAUSD_hex]
+    )
+
+    encoded_config = 12345678987654321
+    await bnb_agg_contract.set_config(
+        signer_pub_keys,
+        [transmitter_acc.contract_address] + transmitter_pub_keys[1:],
+        10, 1, encoded_config+1).invoke()
+    encoded_config = 12345678987654321
+    await luna_agg_contract.set_config(
+        signer_pub_keys,
+        [transmitter_acc.contract_address] + transmitter_pub_keys[1:],
+        10, 1, encoded_config+2).invoke()
+
+    calldata1 = [int(rawReportContext, 16),
+                 int(rawObservers[:60], 16),
+                 observations1,
+                 r_sigs1,
+                 s_sigs1,
+                 signer_pub_keys]
+
+    calldata2 = [int(rawReportContext, 16),
+                 int(rawObservers[:60], 16),
+                 observations2,
+                 r_sigs2,
+                 s_sigs2,
+                 signer_pub_keys]
+
+    calldata3 = [int(rawReportContext, 16),
+                 int(rawObservers[:60], 16),
+                 observations3,
+                 r_sigs3,
+                 s_sigs3,
+                 signer_pub_keys]
+
+    res1 = await transmitter.send_transaction(
+        account=transmitter_acc,
+        to=eth_agg_contract.contract_address,
+        selector_name='transmit',
+        calldata=calldata1)
+
+    res2 = await transmitter.send_transaction(
+        account=transmitter_acc,
+        to=bnb_agg_contract.contract_address,
+        selector_name='transmit',
+        calldata=calldata2)
+
+    res3 = await transmitter.send_transaction(
+        account=transmitter_acc,
+        to=luna_agg_contract.contract_address,
+        selector_name='transmit',
+        calldata=calldata3)
+
+    latestTransmissionDetails = await eth_agg_contract.latestTransmissionDetails().call()
+    latestTransmissionDetails2 = await bnb_agg_contract.latestTransmissionDetails().call()
+    latestTransmissionDetails3 = await luna_agg_contract.latestTransmissionDetails().call()
+
+    print("\n EthUsd", latestTransmissionDetails.result)
+    print("\n BnbUsd", latestTransmissionDetails2.result)
+    print("\n LunaUsd", latestTransmissionDetails3.result)
+
+
+@ pytest.mark.asyncio
+async def test_change_aggregator(contract_factory):
+    starknet, ofc_agg_contract, transmitter_acc, owner_acc = contract_factory
+
+    main_oracle = await starknet.deploy(
+        "contracts/MainOracle.cairo",
+        constructor_calldata=[
+            owner_acc.contract_address,
+            ofc_agg_contract.contract_address,
+        ]
+    )
+    agg1 = await main_oracle.get_aggregator().call()
+    prop_agg1 = await main_oracle.get_proposed_aggregator().call()
+    # .................................................................
+    await owner.send_transaction(
+        account=owner_acc,
+        to=main_oracle.contract_address,
+        selector_name='propose_new_aggregator',
+        calldata=[ofc_agg_contract.contract_address//2])
+
+    agg2 = await main_oracle.get_aggregator().call()
+    prop_agg2 = await main_oracle.get_proposed_aggregator().call()
+    # .................................................................
+    await owner.send_transaction(
+        account=owner_acc,
+        to=main_oracle.contract_address,
+        selector_name='confirm_new_aggregator',
+        calldata=[ofc_agg_contract.contract_address//2])
+    agg3 = await main_oracle.get_aggregator().call()
+    prop_agg3 = await main_oracle.get_proposed_aggregator().call()
+
+    assert agg1.result.aggregator_address == ofc_agg_contract.contract_address
+    assert prop_agg1.result.aggregator_address == 0
+
+    assert agg2.result.aggregator_address == ofc_agg_contract.contract_address
+    assert prop_agg2.result.aggregator_address == ofc_agg_contract.contract_address//2
+
+    assert agg3.result.aggregator_address == ofc_agg_contract.contract_address//2
+    assert prop_agg3.result.aggregator_address == 0
+
+    print("test_change_aggregator: PASSED")

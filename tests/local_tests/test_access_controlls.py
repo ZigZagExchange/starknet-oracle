@@ -16,7 +16,7 @@ new_moderator = Signer(555555555555555555555)
 new_external_oracle = Signer(666666666666666666666)
 
 # Enables modules.
-acc_path = "contracts/OpenZepplin/contracts/Account.cairo"
+acc_path = "contracts/Accounts/Account.cairo"
 
 
 @pytest.fixture(scope='module')

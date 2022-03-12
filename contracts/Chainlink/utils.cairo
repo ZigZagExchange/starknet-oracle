@@ -7,6 +7,8 @@ from starkware.cairo.common.signature import verify_ecdsa_signature
 from starkware.cairo.common.hash import hash2
 from starkware.cairo.common.math import assert_not_zero, assert_le, assert_lt, unsigned_div_rem
 from starkware.cairo.common.pow import pow
+from starkware.cairo.common.hash_state import (
+    hash_init, hash_finalize, hash_update, hash_update_single)
 
 from contracts.utils.AccessControlls import only_owner
 
@@ -25,7 +27,7 @@ func check_config_valid{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_
 end
 
 @view
-func config_digest_from_config_data{
+func config_digest_from_config_data_deprecated{
         syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
         _contractAddress : felt, _configCount : felt, _signers_len : felt, _signers : felt*,
         _transmitters_len : felt, _transmitters : felt*, _threshold : felt,
@@ -34,8 +36,8 @@ func config_digest_from_config_data{
 
     let (hash : felt) = hash2{hash_ptr=pedersen_ptr}(_contractAddress, _configCount)
     let (hash : felt) = hash2{hash_ptr=pedersen_ptr}(hash, _configCount)
-    let (hash : felt) = hash_array(_signers_len, _signers, hash)
-    let (hash : felt) = hash_array(_transmitters_len, _transmitters, hash)
+    let (hash : felt) = hash_array_deprecated(_signers_len, _signers, hash)
+    let (hash : felt) = hash_array_deprecated(_transmitters_len, _transmitters, hash)
     let (hash : felt) = hash2{hash_ptr=pedersen_ptr}(hash, _threshold)
     let (hash : felt) = hash2{hash_ptr=pedersen_ptr}(hash, _encodedConfigVersion)
     let (digest : felt) = hash2{hash_ptr=pedersen_ptr}(hash, _encodedConfig)
@@ -43,7 +45,7 @@ func config_digest_from_config_data{
     return (digest)
 end
 
-func hash_array{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+func hash_array_deprecated{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
         arr_len : felt, arr : felt*, hash : felt) -> (hash : felt):
     alloc_locals
     if arr_len == 0:
@@ -52,7 +54,47 @@ func hash_array{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_pt
 
     let (hash : felt) = hash2{hash_ptr=pedersen_ptr}(hash, arr[0])
 
-    return hash_array(arr_len - 1, &arr[1], hash)
+    return hash_array_deprecated(arr_len - 1, &arr[1], hash)
+end
+
+@view
+func config_digest_from_config_data{
+        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+        _contractAddress : felt, _configCount : felt, _signers_len : felt, _signers : felt*,
+        _transmitters_len : felt, _transmitters : felt*, _threshold : felt,
+        _encodedConfigVersion : felt, _encodedConfig : felt) -> (res : felt):
+    let hash_ptr = pedersen_ptr
+    with hash_ptr:
+        let (hash_state_ptr) = hash_init()
+        let (hash_state_ptr) = hash_update_single(hash_state_ptr, _contractAddress)
+        let (hash_state_ptr) = hash_update_single(hash_state_ptr, _configCount)
+        let (hash_state_ptr) = hash_update(hash_state_ptr, _signers, _signers_len)
+        let (hash_state_ptr) = hash_update(hash_state_ptr, _transmitters, _transmitters_len)
+        let (hash_state_ptr) = hash_update_single(hash_state_ptr, _threshold)
+        let (hash_state_ptr) = hash_update_single(hash_state_ptr, _encodedConfigVersion)
+        let (hash_state_ptr) = hash_update_single(hash_state_ptr, _encodedConfig)
+
+        let (res) = hash_finalize(hash_state_ptr)
+        let pedersen_ptr = hash_ptr
+        return (res=res)
+    end
+end
+
+func hash_report{pedersen_ptr : HashBuiltin*}(
+        raw_report_context : felt, raw_observers : felt, observations_len : felt,
+        observations : felt*) -> (res : felt):
+    let hash_ptr = pedersen_ptr
+    with hash_ptr:
+        let (hash_state_ptr) = hash_init()
+
+        let (hash_state_ptr) = hash_update_single(hash_state_ptr, raw_report_context)
+        let (hash_state_ptr) = hash_update_single(hash_state_ptr, raw_observers)
+        let (hash_state_ptr) = hash_update(hash_state_ptr, observations, observations_len)
+
+        let (res) = hash_finalize(hash_state_ptr)
+        let pedersen_ptr = hash_ptr
+        return (res=res)
+    end
 end
 
 # ## ==================================================================================
@@ -101,6 +143,9 @@ func comparison_loop{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_che
     end
 
     let (sum : felt) = get_sum(arr_len, arr, group_size, 0)
+    if sum == 0:
+        return (1)  # TODO: If array ends with all zeros, trim that instead of ignoring it
+    end
     if sum == current:
         return (0)
     end

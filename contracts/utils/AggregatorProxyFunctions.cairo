@@ -9,9 +9,9 @@ from starkware.cairo.common.hash import hash2
 from starkware.cairo.common.math import (
     assert_in_range, assert_le, assert_nn_le, assert_lt, assert_not_zero)
 
-from contracts.utils.AccessControlls import (
-    only_owner, only_owner_or_moderator, set_access_controlls, get_owner, only_external_oracle)
+from contracts.utils.AccessControlls import only_owner
 from contracts.interfaces.AggregatorInterface import IAggregator
+from contracts.interfaces.OffchainAggregatorInterface import IOffchainAggregator
 from contracts.structs.Response_struct import Response
 
 # ================================================================
@@ -42,7 +42,8 @@ end
 func initialize_aggregator{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
         aggregator_address : felt):
     assert_not_zero(aggregator_address)  # TODO: check this is a valid address not just non-zero
-    aggregator.write(aggregator_address)
+
+    aggregator.write(value=aggregator_address)
     return ()
 end
 
@@ -53,7 +54,7 @@ func _get_aggregator{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_che
     return (aggregator_address)
 end
 
-func _get_proposed_agregator{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+func _get_proposed_aggregator{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
         ) -> (aggregator_address : felt):
     let (proposed_aggregator_address) = proposed_aggregator.read()
 
@@ -63,13 +64,13 @@ end
 func _propose_new_aggregator{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
         new_aggregator : felt) -> ():
     assert_not_zero(new_aggregator)  # TODO: Check that it's a valid address not just non-zero
-    only_owner_or_moderator()
+    only_owner()
 
     let (block_number) = get_block_number()
     let (msg_sender) = get_caller_address()
     let (_aggregator) = aggregator.read()
 
-    proposed_aggregator.write(new_aggregator)
+    proposed_aggregator.write(value=new_aggregator)
     new_aggregator_proposed.emit(
         current_aggretgator=_aggregator,
         proposed_aggregator=new_aggregator,
@@ -88,8 +89,8 @@ func _confirm_new_aggregator{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, r
     let (_proposed_aggregator) = proposed_aggregator.read()
 
     assert new_aggregator = _proposed_aggregator
-    proposed_aggregator.write(0)
-    aggregator.write(new_aggregator)
+    proposed_aggregator.write(value=0)
+    aggregator.write(value=new_aggregator)
 
     new_aggregator_accepted.emit(
         prev_aggretgator=_aggregator, new_aggregator=new_aggregator, block_number=block_number)
@@ -99,51 +100,96 @@ end
 # ================================================================
 # GETTER FUNCTIONS  (helper functions for MainOracle)
 
-func _decimals{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
-        decimals : felt):
+func _latestTransmissionDetails{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+        ) -> (
+        config_digest : felt, epoch : felt, round : felt, latest_answer : felt,
+        latest_timestamp : felt):
     let (aggregator_address) = aggregator.read()
-    let (decimals : felt) = IAggregator.decimals(contract_address=aggregator_address)
-
-    return (decimals)
-end
-
-func _latest_timestamp{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
-        timestamp : felt, block_number : felt):
-    let (aggregator_address) = aggregator.read()
-    let (timestamp, block_number) = IAggregator.latest_timestamp(
+    let (config_digest, epoch, round, latest_answer,
+        latest_timestamp) = IOffchainAggregator.latestTransmissionDetails(
         contract_address=aggregator_address)
 
-    assert_not_zero(timestamp)
-    return (timestamp, block_number)
+    return (config_digest, epoch, round, latest_answer, latest_timestamp)
 end
 
-func _latest_round{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
-        roundId : felt):
+func _transmitters{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
+        transmitters_len : felt, transmitters : felt*):
     let (aggregator_address) = aggregator.read()
-    let (roundId) = IAggregator.latest_round(contract_address=aggregator_address)
-
-    assert_not_zero(roundId)
-    return (roundId)
-end
-
-func _latest_answer{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-        id : felt) -> (identifier : felt, answer : Uint256):
-    alloc_locals
-    let (aggregator_address) = aggregator.read()
-    let (local identifier : felt, local answer : Uint256) = IAggregator.latest_answer(
-        contract_address=aggregator_address, id=id)
-
-    assert_not_zero(answer.low + answer.high)
-    return (identifier, answer)
-end
-
-func _latest_round_data{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
-        round_data_len : felt, round_data : Response*):
-    alloc_locals
-    let (aggregator_address) = aggregator.read()
-
-    let (round_data_len : felt, local round_data : Response*) = IAggregator.aggregated_round_data(
+    let (transmitters_len, transmitters) = IOffchainAggregator.transmitters(
         contract_address=aggregator_address)
 
-    return (round_data_len, round_data)
+    return (transmitters_len, transmitters)
+end
+
+func _latestAnswer{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
+        res : felt):
+    let (aggregator_address) = aggregator.read()
+    let (res : felt) = IOffchainAggregator.latestAnswer(contract_address=aggregator_address)
+
+    return (res)
+end
+
+func _latestTimestamp{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
+        res : felt):
+    let (aggregator_address) = aggregator.read()
+    let (res) = IOffchainAggregator.latestTimestamp(contract_address=aggregator_address)
+
+    return (res)
+end
+
+func _latestRound{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
+        res : felt):
+    let (aggregator_address) = aggregator.read()
+    let (res) = IOffchainAggregator.latestRound(contract_address=aggregator_address)
+
+    return (res)
+end
+
+func _getAnswer{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+        roundId : felt) -> (res : felt):
+    let (aggregator_address) = aggregator.read()
+    let (res) = IOffchainAggregator.getAnswer(contract_address=aggregator_address, roundId=roundId)
+
+    return (res)
+end
+
+func _getTimestamp{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+        roundId : felt) -> (res : felt):
+    let (aggregator_address) = aggregator.read()
+    let (res) = IOffchainAggregator.getTimestamp(
+        contract_address=aggregator_address, roundId=roundId)
+
+    return (res)
+end
+
+func _getRoundData{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+        roundId : felt) -> (res : Response):
+    let (aggregator_address) = aggregator.read()
+    let (res : Response) = IOffchainAggregator.getRoundData(
+        contract_address=aggregator_address, roundId=roundId)
+
+    return (res)
+end
+
+func _latestRoundData{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
+        res : Response):
+    let (aggregator_address) = aggregator.read()
+    let (res : Response) = IOffchainAggregator.latestRoundData(contract_address=aggregator_address)
+
+    return (res)
+end
+
+func _description{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
+        res : felt):
+    let (aggregator_address) = aggregator.read()
+    let (res : felt) = IOffchainAggregator.description(contract_address=aggregator_address)
+
+    return (res)
+end
+
+func _decimals{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (res : felt):
+    let (aggregator_address) = aggregator.read()
+    let (res) = IOffchainAggregator.decimals(contract_address=aggregator_address)
+
+    return (res)
 end

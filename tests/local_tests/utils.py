@@ -1,7 +1,7 @@
 """Utilities for testing Cairo contracts."""
 
 from starkware.cairo.common.hash_state import compute_hash_on_elements
-from starkware.crypto.signature.signature import private_to_stark_key, sign
+from starkware.crypto.signature.signature import private_to_stark_key, sign, pedersen_hash
 from starkware.starknet.definitions.error_codes import StarknetErrorCode
 from starkware.starkware_utils.error_handling import StarkException
 from starkware.starknet.public.abi import get_selector_from_name
@@ -78,6 +78,47 @@ def hash_message(sender, to, selector, calldata, nonce):
         to,
         selector,
         compute_hash_on_elements(calldata),
+        nonce
+    ]
+    return compute_hash_on_elements(message)
+
+
+# ===============================================================
+class Transmitter():
+
+    def __init__(self, private_key):
+        self.private_key = private_key
+        self.public_key = private_to_stark_key(private_key)
+
+    def sign(self, message_hash):
+        return sign(msg_hash=message_hash, priv_key=self.private_key)
+
+    async def send_transaction(self, account, to, selector_name, calldata, nonce=None):
+        rrc, robs,  obs, r_sigs, s_sigs, pub_keys = calldata
+        if nonce is None:
+            execution_info = await account.get_nonce().call()
+            nonce, = execution_info.result
+
+        selector = get_selector_from_name(selector_name)
+        message_hash = transmitter_hash_message(
+            account.contract_address, to, selector, calldata, nonce)
+        sig_r, sig_s = self.sign(message_hash)
+
+        return await account.transmit(to, selector, rrc, robs,  obs, r_sigs, s_sigs, pub_keys, nonce).invoke(signature=[sig_r, sig_s])
+
+
+def transmitter_hash_message(sender, to, selector, calldata, nonce):
+
+    rrc, robs,  obs, r_sigs, s_sigs, pub_keys = calldata
+
+    calldata_hash = compute_hash_on_elements(
+        [rrc, robs] + obs + r_sigs + s_sigs + pub_keys)
+
+    message = [
+        sender,
+        to,
+        selector,
+        calldata_hash,
         nonce
     ]
     return compute_hash_on_elements(message)
