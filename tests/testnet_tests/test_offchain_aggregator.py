@@ -37,7 +37,7 @@ ofc_aggregator_abi = ast.literal_eval(ofc_aggregator_abi)
 
 
 owner_addr = "0x05e8e3ffb034bb955aa73bc58d47f8126e9664c5398d0307fbd6dc54f10d867c"
-transmitter_addr = "0x076afbdaf3b8f570a4d9e7c290a1986f6b8f0432d5463cd8d1fd93fa4c1946a8"
+transmitter_addr = "0x06cc8f62768dec4b0661d0ad16e20aeef09cbb372d44a1c66458db4de6c4caa2"
 
 ofc_aggregator_addr = "0x1c8ec6add60de182318397228b83b5b510cb90cc3c592c75ee232042908b791"
 main_oracle_addr = "0x73033b822f094e4ea7e6ccef82254c819224e8d65f660f108da844956d463d3"
@@ -109,7 +109,7 @@ async def test_main_logic(contract_factory):
 async def test_set_config(contract_factory):
     owner_client, main_oracle, transmitter_acc, ofc_aggregator = contract_factory
 
-    encoded_config = 12345678987654321
+    encoded_config = 1234567898765
 
     invocation = await ofc_aggregator.functions["set_config"].invoke(
         signer_pub_keys,
@@ -118,6 +118,17 @@ async def test_set_config(contract_factory):
 
     res = await invocation.wait_for_acceptance()
 
+    # print([int(transmitter_addr, 16)] + transmitter_pub_keys[1:])
+
+    print(res)
+
+
+@pytest.mark.asyncio
+async def test_get_config(contract_factory):
+    owner_client, main_oracle, transmitter_acc, ofc_aggregator = contract_factory
+
+    res = await ofc_aggregator.functions["transmitters"].call()
+
     print(res)
 
 
@@ -125,16 +136,16 @@ async def test_set_config(contract_factory):
 async def test_transmit(contract_factory):
     owner_client, main_oracle, transmitter_acc, ofc_aggregator = contract_factory
 
-    encoded_config = 12345678987654321
+    # encoded_config = 12345678987654321
 
-    invocation = await ofc_aggregator.functions["set_config"].invoke(
-        signer_pub_keys,
-        [int(transmitter_addr, 16)] + transmitter_pub_keys[1:],
-        10, 1, encoded_config)
+    # invocation = await ofc_aggregator.functions["set_config"].invoke(
+    #     signer_pub_keys,
+    #     [int(transmitter_addr, 16)] + transmitter_pub_keys[1:],
+    #     10, 1, encoded_config)
 
-    res1 = await invocation.wait_for_acceptance()
-    print(res1)
-    print("\n =====================================================")
+    # res1 = await invocation.wait_for_acceptance()
+    # print(res1)
+    # print("\n =====================================================")
 
     calldata = [int(rawReportContext, 16),
                 int(rawObservers[:60], 16),
