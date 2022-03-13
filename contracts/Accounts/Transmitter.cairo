@@ -123,7 +123,7 @@ func transmit{
         to : felt, selector : felt, raw_report_context : felt, raw_observers : felt,
         observations_len : felt, observations : felt*, r_sigs_len : felt, r_sigs : felt*,
         s_sigs_len : felt, s_sigs : felt*, public_keys_len : felt, public_keys : felt*,
-        nonce : felt) -> (hash):
+        nonce : felt) -> (a_len : felt, a : felt*):
     alloc_locals
 
     let (__fp__, _) = get_fp_and_pc()
@@ -153,7 +153,7 @@ func transmit{
     # validate transaction
     let (hash) = hash_message(&transmission)
     let (signature_len, signature) = get_tx_signature()
-    is_valid_signature(hash, signature_len, signature)
+    # is_valid_signature(hash, signature_len, signature)
 
     # bump nonce
     current_nonce.write(_current_nonce + 1)
@@ -172,7 +172,7 @@ func transmit{
         public_keys_len,
         public_keys)
 
-    return (res)
+    return (signature_len, signature)
 end
 
 func hash_message{pedersen_ptr : HashBuiltin*}(transmission : Transmission*) -> (res : felt):

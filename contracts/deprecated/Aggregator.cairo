@@ -107,7 +107,7 @@ func round_data{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_pt
         answer=price,
         timestamp=timestamp,
         block_number=block_number,
-        data_source_address=data_source_address)
+        transmitter=data_source_address)
 
     return (response)
 end

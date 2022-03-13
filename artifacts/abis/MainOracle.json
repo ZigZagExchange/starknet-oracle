@@ -2,23 +2,6 @@
     {
         "members": [
             {
-                "name": "low",
-                "offset": 0,
-                "type": "felt"
-            },
-            {
-                "name": "high",
-                "offset": 1,
-                "type": "felt"
-            }
-        ],
-        "name": "Uint256",
-        "size": 2,
-        "type": "struct"
-    },
-    {
-        "members": [
-            {
                 "name": "roundId",
                 "offset": 0,
                 "type": "felt"
@@ -44,7 +27,7 @@
                 "type": "felt"
             },
             {
-                "name": "data_source_address",
+                "name": "transmitter",
                 "offset": 6,
                 "type": "felt"
             }
@@ -54,13 +37,26 @@
         "type": "struct"
     },
     {
-        "data": [
+        "members": [
             {
-                "name": "owner",
+                "name": "low",
+                "offset": 0,
                 "type": "felt"
             },
             {
-                "name": "moderator",
+                "name": "high",
+                "offset": 1,
+                "type": "felt"
+            }
+        ],
+        "name": "Uint256",
+        "size": 2,
+        "type": "struct"
+    },
+    {
+        "data": [
+            {
+                "name": "owner",
                 "type": "felt"
             },
             {
@@ -93,25 +89,6 @@
         ],
         "keys": [],
         "name": "ownership_transfered",
-        "type": "event"
-    },
-    {
-        "data": [
-            {
-                "name": "prev_moderator",
-                "type": "felt"
-            },
-            {
-                "name": "new_moderator",
-                "type": "felt"
-            },
-            {
-                "name": "block_number",
-                "type": "felt"
-            }
-        ],
-        "keys": [],
-        "name": "moderator_changed",
         "type": "event"
     },
     {
@@ -176,36 +153,9 @@
         "type": "event"
     },
     {
-        "data": [
-            {
-                "name": "roundId",
-                "type": "felt"
-            },
-            {
-                "name": "timestamp",
-                "type": "felt"
-            },
-            {
-                "name": "block_number",
-                "type": "felt"
-            }
-        ],
-        "keys": [],
-        "name": "round_data_updated",
-        "type": "event"
-    },
-    {
         "inputs": [
             {
                 "name": "owner_address",
-                "type": "felt"
-            },
-            {
-                "name": "moderator_address",
-                "type": "felt"
-            },
-            {
-                "name": "external_oracle_address",
                 "type": "felt"
             },
             {
@@ -231,7 +181,7 @@
     },
     {
         "inputs": [],
-        "name": "get_proposed_agregator",
+        "name": "get_proposed_aggregator",
         "outputs": [
             {
                 "name": "aggregator_address",
@@ -265,25 +215,7 @@
     },
     {
         "inputs": [],
-        "name": "update_data",
-        "outputs": [],
-        "type": "function"
-    },
-    {
-        "inputs": [],
-        "name": "get_external_oracle",
-        "outputs": [
-            {
-                "name": "address",
-                "type": "felt"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [],
-        "name": "get_decimals",
+        "name": "decimals",
         "outputs": [
             {
                 "name": "decimals",
@@ -295,10 +227,26 @@
     },
     {
         "inputs": [],
-        "name": "latest_timestamp",
+        "name": "latestTransmissionDetails",
         "outputs": [
             {
-                "name": "ts",
+                "name": "config_digest",
+                "type": "felt"
+            },
+            {
+                "name": "epoch",
+                "type": "felt"
+            },
+            {
+                "name": "round",
+                "type": "felt"
+            },
+            {
+                "name": "latest_answer",
+                "type": "felt"
+            },
+            {
+                "name": "latest_timestamp",
                 "type": "felt"
             }
         ],
@@ -307,10 +255,26 @@
     },
     {
         "inputs": [],
-        "name": "latest_block_number",
+        "name": "transmitters",
         "outputs": [
             {
-                "name": "block_number",
+                "name": "transmitters_len",
+                "type": "felt"
+            },
+            {
+                "name": "transmitters",
+                "type": "felt*"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "latestTimestamp",
+        "outputs": [
+            {
+                "name": "res",
                 "type": "felt"
             }
         ],
@@ -319,44 +283,40 @@
     },
     {
         "inputs": [],
-        "name": "latest_round",
+        "name": "latestAnswer",
         "outputs": [
+            {
+                "name": "res",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "latestRound",
+        "outputs": [
+            {
+                "name": "res",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
             {
                 "name": "roundId",
                 "type": "felt"
             }
         ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "name": "id",
-                "type": "felt"
-            }
-        ],
-        "name": "latest_price",
+        "name": "getAnswer",
         "outputs": [
             {
-                "name": "price",
-                "type": "Uint256"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [],
-        "name": "latest_aggregated_prices",
-        "outputs": [
-            {
-                "name": "prices_len",
+                "name": "res",
                 "type": "felt"
-            },
-            {
-                "name": "prices",
-                "type": "Uint256*"
             }
         ],
         "stateMutability": "view",
@@ -365,11 +325,28 @@
     {
         "inputs": [
             {
-                "name": "id",
+                "name": "roundId",
                 "type": "felt"
             }
         ],
-        "name": "latest_round_data",
+        "name": "getTimestamp",
+        "outputs": [
+            {
+                "name": "res",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "roundId",
+                "type": "felt"
+            }
+        ],
+        "name": "getRoundData",
         "outputs": [
             {
                 "name": "res",
@@ -380,17 +357,8 @@
         "type": "function"
     },
     {
-        "inputs": [
-            {
-                "name": "id",
-                "type": "felt"
-            },
-            {
-                "name": "roundId",
-                "type": "felt"
-            }
-        ],
-        "name": "get_round_data",
+        "inputs": [],
+        "name": "latestRoundData",
         "outputs": [
             {
                 "name": "res",
@@ -401,38 +369,8 @@
         "type": "function"
     },
     {
-        "inputs": [
-            {
-                "name": "roundId",
-                "type": "felt"
-            }
-        ],
-        "name": "get_aggregated_round_data",
-        "outputs": [
-            {
-                "name": "round_data_len",
-                "type": "felt"
-            },
-            {
-                "name": "round_data",
-                "type": "Response*"
-            }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {
-                "name": "baseId",
-                "type": "felt"
-            },
-            {
-                "name": "quoteId",
-                "type": "felt"
-            }
-        ],
-        "name": "base_to_quote_price",
+        "inputs": [],
+        "name": "description",
         "outputs": [
             {
                 "name": "res",

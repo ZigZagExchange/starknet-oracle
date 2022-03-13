@@ -14,7 +14,7 @@ from starkware.cairo.common.math import (
 from contracts.utils.AccessControlls import set_access_controlls, only_owner
 from contracts.libraries.Hexadecimals import (
     hex64_to_array, splice_array, hex_array_to_decimal, decimal_to_hex_array)
-from contracts.Chainlink.utils import (
+from contracts.OffchainAggregator.utils import (
     check_for_duplicates, verify_all_signatures, assert_array_sorted, check_config_valid,
     config_digest_from_config_data, hash_report)
 from contracts.structs.Response_struct import Response
@@ -63,7 +63,6 @@ end
 
 const maxNumOracles = 31
 
-# Hot vars ==============
 @storage_var
 func s_latestConfigDigest() -> (res : felt):
 end
@@ -79,7 +78,6 @@ end
 @storage_var
 func s_latestAggregatorRoundId() -> (res : felt):
 end
-# Hot vars ==============
 
 @storage_var
 func s_latestConfigBlockNumber() -> (res : felt):
@@ -164,7 +162,7 @@ end
 @external
 func set_config{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
         _signers_len : felt, _signers : felt*, _transmitters_len : felt, _transmitters : felt*,
-        _threshold : felt, _encodedConfigVersion : felt, _encoded : felt) -> (a, b):
+        _threshold : felt, _encodedConfigVersion : felt, _encoded : felt) -> ():
     alloc_locals
     check_config_valid(_signers_len, _transmitters_len, _threshold)
     # only_owner()
@@ -212,7 +210,7 @@ func set_config{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_pt
         _encodedConfigVersion,
         _encoded)
 
-    return (digest, config_digest)
+    return ()
 end
 
 @external

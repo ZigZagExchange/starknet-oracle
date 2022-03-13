@@ -10,23 +10,22 @@ from utils import Signer
 
 owner = Signer(111111111111111111111)
 
-acc_path = "contracts/Accounts/account.cairo"
+acc_path = "contracts/Accounts/Account.cairo"
 # ============   ============   ============   ==============
 file_path = "tests/dummy_data/dummy_calldata.json"
 f = open(file_path, 'r')
 calldata = json.load(f)
 f.close()
 
-msg_hash = calldata["cairo-calldata"]["msg_hash"]
 rawReportContext = calldata["cairo-calldata"]["rawReportContext"]
 rawObservers = calldata["cairo-calldata"]["rawObservers"]
-r_sigs = calldata["cairo-calldata"]["r_sigs"]
-s_sigs = calldata["cairo-calldata"]["s_sigs"]
 signer_pub_keys = calldata["cairo-calldata"]["signer_public_keys"]
-signer_priv_keys = calldata["cairo-calldata"]["signer_private_keys"]
 transmitter_pub_keys = calldata["cairo-calldata"]["transmitter_public_keys"]
 transmitter_priv_keys = calldata["cairo-calldata"]["transmitter_private_keys"]
-observations = calldata["cairo-calldata"]["observations"]
+
+r_sigs1 = calldata["cairo-calldata"]["calldata1"]["r_sigs"]
+s_sigs1 = calldata["cairo-calldata"]["calldata1"]["s_sigs"]
+observations1 = calldata["cairo-calldata"]["calldata1"]["observations"]
 # ============   ============   ============   ==============
 
 
@@ -121,5 +120,13 @@ async def test_signatures(contract_factory):
 
 
 @pytest.mark.asyncio
-async def test_make_hex_array(contract_factory):
+async def test_sigs(contract_factory):
     starknet, contract, owner_acc = contract_factory
+
+    res = await owner.send_transaction(
+        account=owner_acc,
+        to=contract.contract_address,
+        selector_name='test_signatures',
+        calldata=[])
+
+    print(res.result)

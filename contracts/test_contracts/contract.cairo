@@ -2,7 +2,8 @@
 %builtins pedersen range_check ecdsa
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin
-from starkware.starknet.common.syscalls import get_caller_address, get_contract_address
+from starkware.starknet.common.syscalls import (
+    get_caller_address, get_contract_address, get_tx_signature)
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.hash import hash2
 from starkware.cairo.common.registers import get_fp_and_pc
@@ -15,6 +16,10 @@ from starkware.cairo.common.pow import pow
 from contracts.libraries.Math64x61 import (
     Math64x61_to64x61, Math64x61_from64x61, Math64x61_mul, Math64x61_div, Math64x61_pow)
 from contracts.libraries.Hexadecimals import decimal_to_hex_array, hex64_to_array
+
+@event
+func sig_event(sig_len : felt, sig : felt*):
+end
 
 func make_array{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
         _prices_len : felt, _prices : Uint256*, count) -> (prices_len : felt, prices : Uint256*):
@@ -228,4 +233,16 @@ func test_hexes{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_pt
     let hex = 0x09080e0c190b0307021a051d141e121615131b0f0106110d00181c04101700001233453452122212123
 
     return (hex)
+end
+
+@view
+func test_signatures{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
+        sig_len : felt, sig : felt*):
+    alloc_locals
+
+    let (signature_len, signature) = get_tx_signature()
+
+    sig_event.emit(signature_len, signature)
+
+    return (signature_len, signature)
 end

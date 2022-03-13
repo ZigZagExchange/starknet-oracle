@@ -47,7 +47,7 @@ transmitters2 = [x*2//3 for x in transmitter_pub_keys]
 
 acc_path = "contracts/Accounts/Account.cairo"
 transmitter_path = "contracts/Accounts/Transmitter.cairo"
-ofc_agg_path = "contracts/Chainlink/OffchainAggregator.cairo"
+ofc_agg_path = "contracts/OffchainAggregator/OffchainAggregator.cairo"
 
 
 ETHUSD_hex = 0x4554482f555344
