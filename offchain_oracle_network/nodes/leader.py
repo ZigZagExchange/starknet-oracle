@@ -1,14 +1,13 @@
+from pickle import dumps
 import time
 import zmq
 import threading
 
-from offchain_oracle_network.classes.report_class import Report
+from classes.report_class import Report
 
 F = 10
 NUM_NODES = 31
 R_MAX = 20
-T_ROUND = 30
-T_GRACE = 10
 
 
 class Leader:
@@ -19,8 +18,7 @@ class Leader:
         # signed observations of the current round received in OBSERVE messages
         self.observations = []
         self.reports = []  # attested reports of the current round received in REPORT messages
-        self.round_timer = threading.Timer(T_ROUND, self.start_round)
-        self.grace_timer = threading.Timer(T_GRACE, self.assemble_report)
+
         # denotes phase within round in { OBSERVE , GRACE , REPORT , FINAL }
         self.phase = None
 
@@ -29,73 +27,37 @@ class Leader:
         self.observations = []
         self.reports = []
         self.phase = 'OBSERVE'
-        restart_timer(self.round_timer)
+        #!restart_timer()
         # TODO: Send OBSERVE-REQ to all nodes
 
-    # upon receiving message [OBSERVE]
-    def receive_observation(self, round_n, observation, signature):
-
-        node_idx = 5  # TODO: get node index from message
-
-        if self.round_num != round_n:
-            print('ERROR: Round number mismatch')
-            return
-        if not (self.phase == 'OBSERVE' or self.phase == 'GRACE'):
-            print('ERROR: Phase should be OBSERVE or GRACE')
-            return
-        if self.observations[node_idx] != None:
-            print('ERROR: Observation already received from this node for this round')
+    def assemble_report(self, publisher):
+        if not self.phase == "GRACE":
+            print("ERROR: Phase should be GRACE")
             return
 
-        # TODO: Verify signature of observation
-        if True:
-            self.observations.append((observation, signature, node_idx))
-
-    # when at least 2F+1 nodes have sent their observations
-    def initiate_grace_period(self):
-        count = 0
-        for i in range(len(self.observations)):
-            if self.observations[i] is not None:
-                count += 1
-        if count < 2*F+1:
-            print('ERROR: Not enough observations received')
-            return
-        if self.phase != 'OBSERVE':
-            print('ERROR: Phase must be OBSERVE')
-            return
-
-        restart_timer(self.grace_timer)
-        self.phase = "GRACE"
-
-    # upon event timeout of grace_timer
-    def assemble_report(self):
-        if not self.phase == 'GRACE':
-            print('ERROR: Phase should be GRACE')
-            return
-
-        report_temp = [x for x in self.observations if x[0] is not None]
+        # where x = (observation, signature, node_idx)
+        report_temp = [x for x in self.observations if x[0]]
         report_temp.sort(key=lambda x: x[0])
 
         observations = []
         observers = []
         signatures = []
         for i in range(len(report_temp)):
-            # ? report_temp[i] is a tuple of (observation, signature)
             observations.append(report_temp[i][0])
             signatures.append(report_temp[i][1])
             observers.append(report_temp[i][2])
 
-        # observers = [k for k, v, s in report]
-        config_digest = self.get_config_digest()
+        config_digest = self.get_config_digest()  # TODO
         epoch_and_round = hex(self.epoch)[2:] + hex(self.round_num)[2:]
 
-        raw_report_context = config_digest + epoch_and_round
+        raw_report_context = hex(config_digest)[2:] + epoch_and_round
         raw_observers = self.indexes_list_to_hex_string(observers)
 
         report = Report(raw_report_context, raw_observers, observations)
 
-        # TODO: Send REPORT message to all nodes [REPORT-REQ , r , R, sigs ]
         self.phase = "REPORT"
+        print("Report_assebled")
+        publisher.send_multipart([b"REPORT-REQ", dumps(report)])
 
     # upon receiving message [REPORT, r , R, τ]
     def receive_report(self, round_n, report, signature):
@@ -138,7 +100,7 @@ class Leader:
 
     def get_config_digest(self):
         # TODO: Get the config digest
-        return 123456789
+        return 123456789932728419024823509129473805294812389473419247 % 2**128
 
     def indexes_list_to_hex_string(self, idxs):
         hex_string = "0x"
@@ -171,10 +133,6 @@ class Leader:
         else:
             return None, None, None
 
-
-def restart_timer(timer):
-    timer.cancel()
-    timer.start()
 
 #(report, signature, node_idx)
 

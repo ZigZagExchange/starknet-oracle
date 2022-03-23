@@ -3,7 +3,9 @@ import zmq
 import threading
 
 from starkware.cairo.common.hash_state import compute_hash_on_elements
-from starkware.crypto.signature.signature import private_to_stark_key, sign
+from starkware.crypto.signature.signature import sign, verify
+
+from pacemaker import Pacemaker
 
 F = 10
 NUM_NODES = 31
@@ -15,12 +17,13 @@ round_error_msg = "ERROR: Round number mismatch"
 completed_round_error = 'ERROR: Round has already been completed'
 
 
-class Follower:
-    def __init__(self, index, epoch, leader):
+class Follower(Pacemaker):
+    def __init__(self, index, epoch, leader_id):
+        super().__init__(index)
         self.private_key = 0
         self.index = index
         self.epoch = epoch
-        self.leader = leader
+        self.leader_id = leader_id
         self.round_num = 0  # round number within the epoch
         self.sentecho = None  # echoed attested report which has been sent for this round
         self.sentreport = False  # indicates if REPORT message has been sent for this round
@@ -35,8 +38,8 @@ class Follower:
     def send_signed_observation(self, round_n):
         self.round_num = round_n
         if round_n > MAX_ROUND:
-            # TODO: Invoke transfer event and exit
-            pass
+            # TODO: Invoke change_leader event
+            return "CHANGE-LEADER"
 
         self.sentecho = None
         self.sentreport = False
