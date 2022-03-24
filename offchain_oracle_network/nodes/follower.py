@@ -27,7 +27,7 @@ private_keys = keys["keys"]["private_keys"]
 # ? ===========================================================================
 
 
-class Follower(Pacemaker):
+class FollowerState(Pacemaker):
     def __init__(self, index, epoch, leader_id):
         super().__init__(index)
         self.private_key = 0
@@ -43,19 +43,6 @@ class Follower(Pacemaker):
 
     def set_private_key(self, priv_key):
         self.private_key = priv_key
-
-    def invoke_transmission(self):
-
-        if self.count_echoes() <= F:
-            print("ERROR: Not enough echoes received")
-            return
-
-        if self.completedround:
-            print("ERROR: Round number mismatch")
-            return
-
-        # TODO: Invoke transmit()
-        self.complete_round()
 
     def complete_round(self):
         self.completedround = True

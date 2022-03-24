@@ -11,7 +11,7 @@ NUM_NODES = 31
 R_MAX = 20
 
 
-class Leader:
+class LeaderState:
     def __init__(self, index, epoch):
         self.index = index   # index of the current node
         self.epoch = epoch  # the current epoch
@@ -30,8 +30,9 @@ class Leader:
         self.reports = []
         self.current_report = None
         self.phase = 'OBSERVE'
-        #!restart_timer()
-        # TODO: Send OBSERVE-REQ to all nodes
+
+    def emit_new_round_event(self, publisher):
+        publisher.send_multipart([b"NEW-ROUND"])
 
     def assemble_report(self, publisher):
         if not self.phase == "GRACE":

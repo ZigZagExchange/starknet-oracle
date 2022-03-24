@@ -10,7 +10,7 @@ from starkware.crypto.signature.signature import sign, verify
 
 from classes.report_class import Report
 import helpers.helpers as h
-from leader import Leader
+from leader import LeaderState
 
 # ? ===========================================================================
 file_path = "../../tests/dummy_data/dummy_keys.json"
@@ -26,7 +26,7 @@ private_keys = keys["keys"]["private_keys"]
 F = 0
 NUM_NODES = 31
 R_MAX = 20
-T_ROUND = 30
+T_ROUND = 10
 T_GRACE = 3
 
 
@@ -37,113 +37,115 @@ PORT_NUM = 5560 + NODE_IDX
 temp_epoch_num = 12345
 
 
-def leader_node():
-    context = zmq.Context()
+class LeaderNode(LeaderState):
+    def __init__(self, index, epoch, ):
+        super().__init__(index, epoch)
+        self.context = zmq.Context()
+        # * This is the socket from which the follower will brodcast messages to other oracles
+        self.publisher = self.context.socket(zmq.PUB)
+        self.publisher.sndhwm = 1100000
+        self.publisher.bind("tcp://*:{}".format(PORT_NUM))
+        # * These sockets are used to receive messages from other oracles
+        self.subscriptions = h.subscribe_to_other_nodes_leader(self.context)
+        # * Poller is used to reduce the cpu strain
+        self.poller = zmq.Poller()
+        self.poller.register(self.publisher, zmq.POLLIN)
+        for sub in self.subscriptions:
+            self.poller.register(sub, zmq.POLLIN)
+        # * Timers
+        self.round_timer = h.ResettingTimer(
+            T_ROUND, self.emit_new_round_event, self.publisher)
+        self.grace_timer = h.ResettingTimer(
+            T_GRACE, self.assemble_report, self.publisher)
 
-    leader = Leader(PORT_NUM, temp_epoch_num)
+    def run(self):
+        sleep(1)
+        self.publisher.send_multipart([b"START-EPOCH"])
+        while True:
 
-    # * This is the socket from which the leader will brodcast messages to other oracles
-    publisher = context.socket(zmq.PUB)
-    publisher.sndhwm = 1100000
-    publisher.bind("tcp://*:{}".format(PORT_NUM))
+            try:
+                socks = dict(self.poller.poll())
+            except KeyboardInterrupt:
+                break
 
-    round_timer = h.ResettingTimer(T_ROUND, print, "Round time out")
-    grace_timer = h.ResettingTimer(T_GRACE, leader.assemble_report, publisher)
+            for sub in self.subscriptions:
 
-    # * These sockets are used to receive messages from other oracles
-    subscriptions = h.subscribe_to_other_nodes_leader(NUM_NODES, context)
+                if sub in socks:
+                    msg = sub.recv_multipart()
+                    # ? ==========================================================================
+                    # SECTION Start a new round
+                    if msg[0] == b'START-EPOCH' or msg[0] == b'NEW-ROUND':
+                        self.start_round()
+                        self.round_timer.start()
+                        self.publisher.send_multipart(
+                            [b"OBSERVE-REQ", dumps({"round_n": self.round_num})])
+                        print("NEW EPOCH STARTED")
+                    # _ !SECTION
+                    # ? ==========================================================================
+                    # SECTION Recieve an observation
+                    if msg[0] == b'OBSERVE':
+                        round_n, observation, signature = loads(msg[1])["round_n"], loads(msg[1])[
+                            "observation"], loads(msg[1])["signature"]
+                        node_idx = int(sub.get(zmq.IDENTITY).decode())
 
-    sleep(1)  # TODO: remove this sleep
-
-    publisher.send_multipart([b"START-EPOCH"])
-
-    # * This is to reduce the cpu strain
-    poller = zmq.Poller()
-    poller.register(publisher, zmq.POLLIN)
-    for sub in subscriptions:
-        poller.register(sub, zmq.POLLIN)
-
-    while True:
-
-        try:
-            socks = dict(poller.poll())
-        except KeyboardInterrupt:
-            break
-
-        for sub in subscriptions:
-
-            if sub in socks:
-                msg = sub.recv_multipart()
-                # ? ==========================================================================
-                # SECTION Start a new round
-                if msg[0] == b'START-EPOCH':
-                    leader.start_round()
-                    round_timer.start()
-                    publisher.send_multipart(
-                        [b"OBSERVE-REQ", dumps({"round_n": leader.round_num})])
-                    print("NEW EPOCH STARTED")
-                # _ !SECTION
-                # ? ==========================================================================
-                # SECTION Recieve an observation
-                if msg[0] == b'OBSERVE':
-                    round_n, observation, signature = loads(msg[1])["round_n"], loads(msg[1])[
-                        "observation"], loads(msg[1])["signature"]
-                    node_idx = int(sub.get(zmq.IDENTITY).decode())
-
-                    print("RECEIVED OBSERVE: ", observation)
-                    if round_n != leader.round_num:
-                        print("ERROR: Round number mismatch")
-                        return
-                    if not (leader.phase == "OBSERVE" or leader.phase == "GRACE"):
-                        print("ERROR: Phase should be OBSERVE or GRACE")
-                        return
-                    try:
-                        if leader.observations[node_idx]:
-                            print(
-                                "ERROR: Observation already received from this node for this round")
+                        if round_n != self.round_num:
+                            print("ERROR: Round number mismatch")
                             return
-                        print("Inside try")
-                    except IndexError:
-                        msg_hash = compute_hash_on_elements(
-                            [leader.epoch, round_n, observation])
-                        if verify(msg_hash, signature[0], signature[1], public_keys[node_idx]):
-                            leader.observations.append(
-                                (observation, signature, node_idx))
+                        if not (self.phase == "OBSERVE" or self.phase == "GRACE"):
+                            print("ERROR: Phase should be OBSERVE or GRACE")
+                            return
+                        try:
+                            if self.observations[node_idx]:
+                                print(
+                                    "ERROR: Observation already received from this node for this round")
+                                return
+                            print("Inside try")
+                        except IndexError:
+                            msg_hash = compute_hash_on_elements(
+                                [self.epoch, round_n, observation])
+                            if verify(msg_hash, signature[0], signature[1], public_keys[node_idx]):
+                                self.observations.append(
+                                    (observation, signature, node_idx))
 
-                            if len(leader.observations) == 2*F + 1:
-                                if leader.phase != 'OBSERVE':
-                                    print('ERROR: Phase must be OBSERVE')
-                                    return
+                                if len(self.observations) == 2*F + 1:
+                                    if self.phase != 'OBSERVE':
+                                        print(
+                                            'ERROR: Phase must be OBSERVE')
+                                        return
 
-                                leader.phase = "GRACE"
-                                grace_timer.start()
+                                    self.phase = "GRACE"
+                                    self.grace_timer.start()
+                            else:
+                                print("ERROR: Signature verification failed")
+                    # _ !SECTION
+                    # ? ===========================================================================
+                    # SECTION Recieve an observation
+                    if msg[0] == b'REPORT':
+                        print("RECEIVED REPORT")
+                        round_n, report, signature = loads(msg[1])["round_n"], loads(msg[1])[
+                            "report"], loads(msg[1])["signature"]
+
+                        if self.current_report.msg_hash() != report.msg_hash():
+                            print("ERROR: Report mismatch")
+                            return
+
+                        node_idx = int(sub.get(zmq.IDENTITY).decode())
+                        public_key = public_keys[node_idx]
+
+                        if self.current_report.verify_report_signature(public_key, signature):
+                            self.reports.append(
+                                (report, signature, node_idx))
+                            if len(self.reports) == 4:  # TODO: > F:
+                                self.finalize_report(
+                                    report, self.publisher)
+
                         else:
                             print("ERROR: Signature verification failed")
-                # _ !SECTION
-                # ? ===========================================================================
-                # SECTION Recieve an observation
-                if msg[0] == b'REPORT':
-                    round_n, report, signature = loads(msg[1])["round_n"], loads(msg[1])[
-                        "report"], loads(msg[1])["signature"]
 
-                    if leader.current_report.msg_hash() != report.msg_hash():
-                        print("ERROR: Report mismatch")
-                        return
-
-                    node_idx = int(sub.get(zmq.IDENTITY).decode())
-                    public_key = public_keys[node_idx]
-
-                    if leader.current_report.verify_report_signature(public_key, signature):
-                        leader.reports.append((report, signature, node_idx))
-                        if len(leader.reports) == 4:  # TODO > F:
-                            leader.finalize_report(report, publisher)
-
-                    else:
-                        print("ERROR: Signature verification failed")
-
-                # _ !SECTION
-                # ? ===========================================================================
+                    # _ !SECTION
+                    # ? ===========================================================================
 
 
 if __name__ == "__main__":
-    leader_node()
+    leader_node = LeaderNode(NODE_IDX, temp_epoch_num)
+    leader_node.run()

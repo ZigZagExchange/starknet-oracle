@@ -11,7 +11,7 @@ node_identities = {
 }
 
 
-def subscribe_to_other_nodes_follower(N_nodes, context):
+def subscribe_to_other_nodes_follower(context):
     subscriptions = []
     for name, port in node_identities.items():
         sub = context.socket(zmq.SUB)
@@ -26,7 +26,7 @@ def subscribe_to_other_nodes_follower(N_nodes, context):
     return subscriptions
 
 
-def subscribe_to_other_nodes_leader(N_nodes, context):
+def subscribe_to_other_nodes_leader(context):
     subscriptions = []
     for name, port in node_identities.items():
         sub = context.socket(zmq.SUB)
@@ -35,6 +35,7 @@ def subscribe_to_other_nodes_leader(N_nodes, context):
         sub.setsockopt(zmq.SUBSCRIBE, b'OBSERVE')
         sub.setsockopt(zmq.SUBSCRIBE, b'REPORT')
         sub.setsockopt(zmq.SUBSCRIBE, b'START-EPOCH')
+        sub.setsockopt(zmq.SUBSCRIBE, b'NEW-ROUND')
         sub.setsockopt(zmq.IDENTITY, name.encode())
         subscriptions.append(sub)
     return subscriptions
