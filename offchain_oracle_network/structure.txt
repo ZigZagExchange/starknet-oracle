@@ -1,0 +1,6 @@
+
+Operator(publisher) => nodes(subscribers)
+
+
+
+f = 10

@@ -94,7 +94,7 @@ class Transmitter():
         return sign(msg_hash=message_hash, priv_key=self.private_key)
 
     async def send_transaction(self, account, to, selector_name, calldata, nonce=None):
-        rrc, robs,  obs, r_sigs, s_sigs, pub_keys = calldata
+        rrc, robs,  obs, r_sigs, s_sigs = calldata
         if nonce is None:
             execution_info = await account.get_nonce().call()
             nonce, = execution_info.result
@@ -104,15 +104,15 @@ class Transmitter():
             account.contract_address, to, selector, calldata, nonce)
         sig_r, sig_s = self.sign(message_hash)
 
-        return await account.transmit(to, selector, rrc, robs,  obs, r_sigs, s_sigs, pub_keys, nonce).invoke(signature=[sig_r, sig_s])
+        return await account.transmit(to, selector, rrc, robs,  obs, r_sigs, s_sigs, nonce).invoke(signature=[sig_r, sig_s])
 
 
 def transmitter_hash_message(sender, to, selector, calldata, nonce):
 
-    rrc, robs,  obs, r_sigs, s_sigs, pub_keys = calldata
+    rrc, robs,  obs, r_sigs, s_sigs = calldata
 
     calldata_hash = compute_hash_on_elements(
-        [rrc, robs] + obs + r_sigs + s_sigs + pub_keys)
+        [rrc, robs] + obs + r_sigs + s_sigs)
 
     message = [
         sender,

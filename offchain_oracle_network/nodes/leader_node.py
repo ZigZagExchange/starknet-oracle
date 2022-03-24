@@ -22,7 +22,8 @@ public_keys = keys["keys"]["public_keys"]
 private_keys = keys["keys"]["private_keys"]
 # ? ===========================================================================
 
-F = 10
+# TODO: Change the constants
+F = 0
 NUM_NODES = 31
 R_MAX = 20
 T_ROUND = 30
@@ -88,10 +89,8 @@ def leader_node():
                     round_n, observation, signature = loads(msg[1])["round_n"], loads(msg[1])[
                         "observation"], loads(msg[1])["signature"]
                     node_idx = int(sub.get(zmq.IDENTITY).decode())
-                    print("OBSERVE: round_n: {}, observation: {}, signature: {}".format(
-                        round_n, observation, signature))
 
-                    print("leader round num: ", leader.round_num)
+                    print("RECEIVED OBSERVE: ", observation)
                     if round_n != leader.round_num:
                         print("ERROR: Round number mismatch")
                         return
@@ -111,16 +110,37 @@ def leader_node():
                             leader.observations.append(
                                 (observation, signature, node_idx))
 
-                            if len(leader.observations) == 1:  # TODO: 2*F + 1:
+                            if len(leader.observations) == 2*F + 1:
                                 if leader.phase != 'OBSERVE':
                                     print('ERROR: Phase must be OBSERVE')
                                     return
 
                                 leader.phase = "GRACE"
                                 grace_timer.start()
-                                print("Grace Timer started")
                         else:
                             print("ERROR: Signature verification failed")
+                # _ !SECTION
+                # ? ===========================================================================
+                # SECTION Recieve an observation
+                if msg[0] == b'REPORT':
+                    round_n, report, signature = loads(msg[1])["round_n"], loads(msg[1])[
+                        "report"], loads(msg[1])["signature"]
+
+                    if leader.current_report.msg_hash() != report.msg_hash():
+                        print("ERROR: Report mismatch")
+                        return
+
+                    node_idx = int(sub.get(zmq.IDENTITY).decode())
+                    public_key = public_keys[node_idx]
+
+                    if leader.current_report.verify_report_signature(public_key, signature):
+                        leader.reports.append((report, signature, node_idx))
+                        if len(leader.reports) == 4:  # TODO > F:
+                            leader.finalize_report(report, publisher)
+
+                    else:
+                        print("ERROR: Signature verification failed")
+
                 # _ !SECTION
                 # ? ===========================================================================
 

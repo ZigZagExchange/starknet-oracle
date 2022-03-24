@@ -9,7 +9,8 @@ from starkware.cairo.common.math import (
     split_felt)
 
 func decimal_to_hex_array{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-        num : felt) -> (new_arr_len : felt, new_arr : felt*):
+        num : felt, bytes : felt) -> (a_len, a : felt*):
+    # (new_arr_len : felt, new_arr : felt*):
     alloc_locals
 
     let (local arr : felt*) = alloc()
@@ -18,7 +19,12 @@ func decimal_to_hex_array{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, rang
 
     split_hex_loop(high, low, 16, 0, arr, 0)
 
-    return (64, arr)
+    tempvar start = (32 - bytes) * 2
+    tempvar stop = 64
+
+    let (arr_len : felt, arr : felt*) = splice_array(64, arr, start, stop)
+
+    return (arr_len, arr)
 end
 
 func input_array_to_hex_array{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(

@@ -169,7 +169,20 @@ end
 # ## ==================================================================================
 # ## VERIFY SIGNATURES FOR THE GIVEN MESSAGE HASH
 
-func verify_all_signatures{
+func verify_sig{
+        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr,
+        ecdsa_ptr : SignatureBuiltin*}(hash : felt, sig : (felt, felt), public_key : felt) -> ():
+    alloc_locals
+
+    with_attr error_message("==== (INVALID SIGNATURE FOR THE GIVEN MESSAGE HASH) ===="):
+        verify_ecdsa_signature(
+            message=hash, public_key=public_key, signature_r=sig[0], signature_s=sig[1])
+    end
+
+    return ()
+end
+
+func verify_all_signatures_deprecated{
         syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr,
         ecdsa_ptr : SignatureBuiltin*}(
         hash : felt, r_sigs_len : felt, r_sigs : felt*, s_sigs_len : felt, s_sigs : felt*,
@@ -186,7 +199,7 @@ func verify_all_signatures{
 
     verify_sig(hash, (r_sig, s_sig), pub_key)
 
-    return verify_all_signatures(
+    return verify_all_signatures_deprecated(
         hash,
         r_sigs_len - 1,
         &r_sigs[1],
@@ -194,19 +207,6 @@ func verify_all_signatures{
         &s_sigs[1],
         public_keys_len - 1,
         &public_keys[1])
-end
-
-func verify_sig{
-        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr,
-        ecdsa_ptr : SignatureBuiltin*}(hash : felt, sig : (felt, felt), public_key : felt) -> ():
-    alloc_locals
-
-    with_attr error_message("==== (INVALID SIGNATURE FOR THE GIVEN MESSAGE HASH) ===="):
-        verify_ecdsa_signature(
-            message=hash, public_key=public_key, signature_r=sig[0], signature_s=sig[1])
-    end
-
-    return ()
 end
 
 # ## ==================================================================================

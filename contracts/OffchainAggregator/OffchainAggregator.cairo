@@ -15,8 +15,8 @@ from contracts.utils.AccessControlls import set_access_controlls, only_owner
 from contracts.libraries.Hexadecimals import (
     hex64_to_array, splice_array, hex_array_to_decimal, decimal_to_hex_array)
 from contracts.OffchainAggregator.utils import (
-    check_for_duplicates, verify_all_signatures, assert_array_sorted, check_config_valid,
-    config_digest_from_config_data, hash_report)
+    check_for_duplicates, assert_array_sorted, check_config_valid, config_digest_from_config_data,
+    hash_report, verify_sig)
 from contracts.structs.Response_struct import Response
 
 struct HotVars:
@@ -138,7 +138,7 @@ func constructor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_p
 end
 
 # # ===========================================================================================
-# # SETTERS  (add request new round functionality)
+# # SETTERS
 
 @external
 func requestNewRound{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (res):
@@ -213,19 +213,24 @@ func set_config{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_pt
     return ()
 end
 
+# @params:
+# - raw_report_context - 11 bytes zero pading, 16 bytes config digest, 4 bytes epoch, 1 byte round
+# - raw_observes - observer indexes representing the order of the signatures
+# - observations - the price observed by the oracles
+
 @external
 func transmit{
         syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr,
         ecdsa_ptr : SignatureBuiltin*}(
         raw_report_context : felt, raw_observers : felt, observations_len : felt,
-        observations : felt*, r_sigs_len : felt, r_sigs : felt*, s_sigs_len : felt, s_sigs : felt*,
-        public_keys_len : felt, public_keys : felt*) -> (res):
+        observations : felt*, r_sigs_len : felt, r_sigs : felt*, s_sigs_len : felt,
+        s_sigs : felt*) -> (res):
     alloc_locals
 
-    let (hex_rrc_len, hex_rrc : felt*) = decimal_to_hex_array(raw_report_context)
+    let (hex_rrc_len, hex_rrc : felt*) = decimal_to_hex_array(raw_report_context, 21)
 
-    let (conf_digest_len, conf_digest : felt*) = splice_array(hex_rrc_len, hex_rrc, 22, 54)
-    let (epoch_and_round_len, epoch_and_round : felt*) = splice_array(hex_rrc_len, hex_rrc, 54, 64)
+    let (conf_digest_len, conf_digest : felt*) = splice_array(hex_rrc_len, hex_rrc, 0, 32)
+    let (epoch_and_round_len, epoch_and_round : felt*) = splice_array(hex_rrc_len, hex_rrc, 32, 42)
 
     let (latest_config_digest : felt) = s_latestConfigDigest.read()
     # assert conf_digest == latest_config_digest
@@ -261,7 +266,7 @@ func transmit{
 
     # ......................................................
 
-    let (hex_observers_len, hex_observers : felt*) = decimal_to_hex_array(raw_observers)
+    let (hex_observers_len, hex_observers : felt*) = decimal_to_hex_array(raw_observers, 31)
     check_for_duplicates(hex_observers_len, hex_observers, 2)
 
     # ......................................................
@@ -269,7 +274,7 @@ func transmit{
     let (msg_hash) = hash_report(raw_report_context, raw_observers, observations_len, observations)
 
     verify_all_signatures(
-        msg_hash, r_sigs_len, r_sigs, s_sigs_len, s_sigs, public_keys_len, public_keys)
+        msg_hash, r_sigs_len, r_sigs, s_sigs_len, s_sigs, hex_observers_len, hex_observers)
 
     # ......................................................
 
@@ -452,6 +457,7 @@ end
 # # ===========================================================================================
 # # HELPERS
 
+# removes all signer and transmitter addresses from storage so they can be reset
 func remove_signers_transmitters{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
         signers_len : felt):
     if signers_len == 0:
@@ -471,6 +477,7 @@ func remove_signers_transmitters{syscall_ptr : felt*, pedersen_ptr : HashBuiltin
     return remove_signers_transmitters(signers_len - 1)
 end
 
+# Adds all signer and transmitter addresses to storage
 func add_signers_transmitters{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
         signers_len : felt, signers : felt*, transmitters_len : felt, transmitters : felt*,
         total : felt):
@@ -504,6 +511,7 @@ func add_signers_transmitters{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, 
         signers_len - 1, &signers[1], transmitters_len - 1, &transmitters[1], total)
 end
 
+# This is used to load all transmitter addresses from s_transmitters to an array
 func load_transmitters_array{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
         transmitters_len : felt, transmitters : felt*, total_len : felt) -> (
         transmitters_len : felt, transmitters : felt*):
@@ -515,6 +523,38 @@ func load_transmitters_array{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, r
     assert transmitters[transmitters_len] = transmitter
 
     return load_transmitters_array(transmitters_len + 1, transmitters, total_len)
+end
+
+# Observer indexes represent which public_key in s_signers coresponds to which r,s signature
+# If observer_indexes[i] = n than the ith signature coresponds to the public key in s_signers[n]
+# Then checks all signatures are valid for the coresponding public key and message hash
+func verify_all_signatures{
+        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr,
+        ecdsa_ptr : SignatureBuiltin*}(
+        hash : felt, r_sigs_len : felt, r_sigs : felt*, s_sigs_len : felt, s_sigs : felt*,
+        observer_idxs_len : felt, observer_idxs : felt*) -> ():
+    alloc_locals
+
+    if r_sigs_len == 0:
+        return ()
+    end
+
+    let r_sig = r_sigs[0]
+    let s_sig = s_sigs[0]
+    tempvar idx = observer_idxs[0] * 16 + observer_idxs[1]
+
+    let (pub_key) = s_signers.read(idx)
+
+    verify_sig(hash, (r_sig, s_sig), pub_key)
+
+    return verify_all_signatures(
+        hash,
+        r_sigs_len - 1,
+        &r_sigs[1],
+        s_sigs_len - 1,
+        &s_sigs[1],
+        observer_idxs_len - 2,
+        &observer_idxs[2])
 end
 
 # # ===========================================================================================

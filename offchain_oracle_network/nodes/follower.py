@@ -1,20 +1,30 @@
 import time
+from classes.report_class import Report
 import zmq
 import threading
+import json
 
 from starkware.cairo.common.hash_state import compute_hash_on_elements
 from starkware.crypto.signature.signature import sign, verify
 
 from pacemaker import Pacemaker
 
-F = 10
+# TODO: change constants
+F = 0
 NUM_NODES = 31
 MAX_ROUND = 20
 T_PROGRESS = 30
 T_RESEND = 10
 
-round_error_msg = "ERROR: Round number mismatch"
-completed_round_error = 'ERROR: Round has already been completed'
+# ? ===========================================================================
+file_path = "../../tests/dummy_data/dummy_keys.json"
+f = open(file_path, 'r')
+keys = json.load(f)
+f.close()
+
+public_keys = keys["keys"]["public_keys"]
+private_keys = keys["keys"]["private_keys"]
+# ? ===========================================================================
 
 
 class Follower(Pacemaker):
@@ -34,81 +44,6 @@ class Follower(Pacemaker):
     def set_private_key(self, priv_key):
         self.private_key = priv_key
 
-    # Upon receiving OBSERVE-REQ
-    def send_signed_observation(self, round_n):
-        self.round_num = round_n
-        if round_n > MAX_ROUND:
-            # TODO: Invoke change_leader event
-            return "CHANGE-LEADER"
-
-        self.sentecho = None
-        self.sentreport = False
-        self.completedround = False
-        self.receivedecho = [False] * NUM_NODES
-
-        observation = self.get_price()  # Current rounds' observation
-        msg_hash = compute_hash_on_elements([self.epoch, round_n, observation])
-        signature = sign(msg_hash, self.private_key)
-        # TODO: Send message to leader with round observation and signature [r, v, σ]
-
-    def send_signed_report(self, round_n, report):
-
-        if round_n != self.round_num:
-            print(round_error_msg)
-            return
-        if self.sentreport:
-            print('ERROR: Report has already been sent')
-            return
-        if self.completedround:
-            print(completed_round_error)
-            return
-
-        if not self.verify_sorted(report):
-            print('ERROR: Report is not sorted')
-            return
-        # TODO: Verify all signatures are valid for the report.observations
-
-        # ? if should_report() else complete_round
-
-        signature = report.sign_report(self.private_key)
-
-        self.sentreport = True
-        # TODO: Send message to leader with compressed report and signature [r, R, σ]
-
-    def receive_final_report(self, report_bundle):
-
-        if report_bundle[1] != self.round_num:
-            print(round_error_msg)
-            return
-        if self.sentecho:
-            print('ERROR: Echo has already been sent')
-            return
-
-        self.verify_attested_report(report_bundle)
-
-        self.sentecho = report_bundle
-        # TODO: send message [FINAL-ECHO , report_bundle] to all nodes
-
-    def receive_final_echo(self, report_bundle):
-
-        node_idx = 5  # TODO: get node indexs
-
-        if report_bundle[1] != self.round_num:
-            print(round_error_msg)
-            return
-        if self.receivedecho[node_idx]:
-            print("ERROR: Already received an echo from this node")
-            return
-        if self.completedround:
-            print(completed_round_error)
-
-        self.verify_attested_report(report_bundle)
-        self.receivedecho[node_idx] = True
-
-        if self.sentecho == None:
-            self.sentecho = report_bundle
-            # TODO: send message [FINAL-ECHO , report_bundle] to all nodes
-
     def invoke_transmission(self):
 
         if self.count_echoes() <= F:
@@ -116,24 +51,47 @@ class Follower(Pacemaker):
             return
 
         if self.completedround:
-            print(completed_round_error)
+            print("ERROR: Round number mismatch")
             return
 
         # TODO: Invoke transmit()
         self.complete_round()
 
+    def complete_round(self):
+        self.completedround = True
+        # TODO: Invoke event progress
+
     # * =============================================================================================
     # * HELPERS
+
+    def verify_attested_report(self, report_bundle):
+
+        e, r, report, signatures, signers = report_bundle
+
+        report: Report
+        if len(signatures) <= F:
+            print("ERROR: Not enough signatures")
+            return
+
+        for i in range(len(signatures)):
+            sig = signatures[i]
+            node_idx = int(signers[2 + 2*i:4+2*i])
+            pub_key = public_keys[node_idx]
+            if not report.verify_report_signature(pub_key, sig):
+                return False
+
+        return True
 
     def get_price(self):
         # TODO: Implement a function that returns the current price of an asset
         return 2687*10**8
 
-    def verify_sorted(self, report):
-        # assert that the array of tuples is sorted by first element
-        for i in range(len(report) - 1):
-            if report[i][0] > report[i + 1][0]:
+    def verify_report_sorted(self, report: Report):
+        # NOTE Maybe do something if observation prices are too far apart
+        for i in range(len(report.observations) - 1):
+            if report.observations[i] > report.observations[i + 1]:
                 return False
+        return True
 
     def should_report(self, report):
         R, t_R = self.get_last_report()
@@ -155,27 +113,9 @@ class Follower(Pacemaker):
 
         return raw_observers
 
-    def verify_attested_report(self, report_bundle):
-
-        e, r, report, signatures, signers = report_bundle
-
-        if len(signatures) <= F:
-            print("ERROR: Not enough signatures")
-            return
-
-        for i in range(len(signatures)):
-            # TODO: Verify ith signature against report.msg_hash() and ith public_key
-            pass
-
-        return True  # Depending on wheter tests passed
-
-    def count_echoes(self):
+    def count_received_echoes(self):
         count = 0
         for x in self.receivedecho:
             count = count+1 if x else count
 
         return count
-
-    def complete_round(self):
-        self.complete_round = True
-        # TODO: Invoke event progress

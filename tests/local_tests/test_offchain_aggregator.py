@@ -22,6 +22,7 @@ rawObservers = calldata["cairo-calldata"]["rawObservers"]
 signer_pub_keys = calldata["cairo-calldata"]["signer_public_keys"]
 transmitter_pub_keys = calldata["cairo-calldata"]["transmitter_public_keys"]
 transmitter_priv_keys = calldata["cairo-calldata"]["transmitter_private_keys"]
+signer_pub_keys_reordered = calldata["cairo-calldata"]["signer_public_keys_reordered"]
 
 r_sigs1 = calldata["cairo-calldata"]["calldata1"]["r_sigs"]
 s_sigs1 = calldata["cairo-calldata"]["calldata1"]["s_sigs"]
@@ -82,7 +83,7 @@ async def contract_factory():
 
     encoded_config = 12345678987654321
     await ofc_agg_contract.set_config(
-        signer_pub_keys,
+        signer_pub_keys_reordered,
         [transmitter_acc.contract_address] + transmitter_pub_keys[1:],
         10, 1, encoded_config).invoke()
 
@@ -99,11 +100,10 @@ async def test_transmit(contract_factory):
     starknet, ofc_agg_contract, transmitter_acc, owner_acc = contract_factory
 
     calldata = [int(rawReportContext, 16),
-                int(rawObservers[:60], 16),
+                int(rawObservers[:62], 16),
                 observations1,
                 r_sigs1,
-                s_sigs1,
-                signer_pub_keys]
+                s_sigs1]
 
     res = await transmitter.send_transaction(
         account=transmitter_acc,

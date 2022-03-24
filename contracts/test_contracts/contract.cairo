@@ -3,7 +3,7 @@
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin
 from starkware.starknet.common.syscalls import (
-    get_caller_address, get_contract_address, get_tx_signature)
+    get_caller_address, get_contract_address, get_tx_signature, get_tx_info, TxInfo)
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.hash import hash2
 from starkware.cairo.common.registers import get_fp_and_pc
@@ -12,26 +12,19 @@ from starkware.cairo.common.signature import verify_ecdsa_signature
 from starkware.cairo.common.math import unsigned_div_rem, assert_le, split_int
 from starkware.cairo.common.math_cmp import is_le
 from starkware.cairo.common.pow import pow
+# from starkware.starknet.common.syscalls import get_tx_info, TxInfo) v- 0.8.0
 
 from contracts.libraries.Math64x61 import (
     Math64x61_to64x61, Math64x61_from64x61, Math64x61_mul, Math64x61_div, Math64x61_pow)
 from contracts.libraries.Hexadecimals import decimal_to_hex_array, hex64_to_array
+from contracts.OffchainAggregator.utils import hash_report
 
 @event
 func sig_event(sig_len : felt, sig : felt*):
 end
 
-func make_array{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-        _prices_len : felt, _prices : Uint256*, count) -> (prices_len : felt, prices : Uint256*):
-    # let (__fp__, _) = get_fp_and_pc()
-
-    if _prices_len == 10:
-        return (_prices_len, _prices)
-    end
-
-    assert _prices[_prices_len] = Uint256(low=count, high=0)
-
-    return make_array(_prices_len + 1, _prices, count + 1)
+@storage_var
+func s_signers(idx : felt) -> (res : felt):
 end
 
 @view
@@ -93,6 +86,81 @@ func test_verify_all_sigs_inner{
         &public_keys[1])
 end
 
+# ========================================================================================================
+
+@external
+func set_signers{
+        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr,
+        ecdsa_ptr : SignatureBuiltin*}(signers_len : felt, signers : felt*, count : felt) -> ():
+    alloc_locals
+
+    if signers_len == 0:
+        return ()
+    end
+
+    s_signers.write(idx=count, value=signers[0])
+
+    return set_signers(signers_len - 1, &signers[1], count + 1)
+end
+
+@view
+func test_verify_all_sigs_reordered{
+        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr,
+        ecdsa_ptr : SignatureBuiltin*}(
+        rrc : felt, robs : felt, obs_len : felt, obs : felt*, r_sigs_len : felt, r_sigs : felt*,
+        s_sigs_len : felt, s_sigs : felt*) -> (x):
+    alloc_locals
+
+    let (hex_observers_len, hex_observers : felt*) = decimal_to_hex_array(robs, 31)
+    let (msg_hash) = hash_report(rrc, robs, obs_len, obs)
+
+    test_verify_all_sigs_reordered_inner(
+        msg_hash, r_sigs_len, r_sigs, s_sigs_len, s_sigs, hex_observers_len, hex_observers)
+
+    return (1)
+end
+
+@view
+func test_verify_all_sigs_reordered_inner{
+        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr,
+        ecdsa_ptr : SignatureBuiltin*}(
+        hash : felt, r_sigs_len : felt, r_sigs : felt*, s_sigs_len : felt, s_sigs : felt*,
+        observer_idxs_len : felt, observer_idxs : felt*) -> ():
+    alloc_locals
+
+    if r_sigs_len == 0:
+        return ()
+    end
+
+    let r_sig = r_sigs[0]
+    let s_sig = s_sigs[0]
+    tempvar idx = observer_idxs[0] * 16 + observer_idxs[1]
+
+    let (pub_key) = s_signers.read(idx)
+
+    test_verify_sig(hash, (r_sig, s_sig), pub_key)
+
+    return test_verify_all_sigs_reordered_inner(
+        hash,
+        r_sigs_len - 1,
+        &r_sigs[1],
+        s_sigs_len - 1,
+        &s_sigs[1],
+        observer_idxs_len - 2,
+        &observer_idxs[2])
+end
+
+@view
+func get_signer{
+        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr,
+        ecdsa_ptr : SignatureBuiltin*}(idx : felt) -> (s):
+    alloc_locals
+
+    let (signer) = s_signers.read(idx=idx)
+
+    return (signer)
+end
+
 # ======================================================================================
 
 @view
@@ -127,7 +195,7 @@ end
 @view
 func test_decimal_to_hex_array{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
         num : felt) -> (arr_len : felt, arr : felt*):
-    let (arr_len : felt, arr : felt*) = decimal_to_hex_array(num)
+    let (arr_len : felt, arr : felt*) = decimal_to_hex_array(num, 32)
     # let (arr_len : felt, arr : felt*) = hex64_to_array(num)
 
     return (arr_len, arr)
@@ -196,21 +264,6 @@ end
 
 # ==========================================================================================================
 
-# @view
-# func test_duplicate_array{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-#         arr_len : felt, arr : felt*) -> (sum):
-#     check_for_duplicates(arr_len, arr, 2)
-
-# return (1)
-# end
-
-@view
-func test_max_num{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-        num : felt) -> (sum):
-    let new_num = num + 1
-    return (new_num)
-end
-
 func hash_array{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
         arr_len : felt, arr : felt*, hash : felt) -> (hash : felt):
     alloc_locals
@@ -224,25 +277,24 @@ func hash_array{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_pt
 end
 
 # ==================================================================================================
+# --v 0.8.0
+# @view
+# func test_get_tx_info{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
+#         v, a, f, s_len, s : felt*, t, c):
+#     alloc_locals
 
-@view
-func test_hexes{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
-        hex : felt):
-    alloc_locals
+# let (tx_info : TxInfo*) = get_tx_info()
+#     # let (tx_info : TxInfo) = [tx_info_ptr]
 
-    let hex = 0x09080e0c190b0307021a051d141e121615131b0f0106110d00181c04101700001233453452122212123
+# let vesion = tx_info.version
+#     let address = tx_info.account_contract_address
+#     let max_fee = tx_info.max_fee
 
-    return (hex)
-end
+# let signature_len = tx_info.signature_len
+#     let signature = tx_info.signature
 
-@view
-func test_signatures{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
-        sig_len : felt, sig : felt*):
-    alloc_locals
+# let transaction_hash = tx_info.transaction_hash
+#     let chain_id = tx_info.chain_id
 
-    let (signature_len, signature) = get_tx_signature()
-
-    sig_event.emit(signature_len, signature)
-
-    return (signature_len, signature)
-end
+# return (vesion, address, max_fee, signature_len, signature, transaction_hash, chain_id)
+# end

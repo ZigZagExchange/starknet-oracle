@@ -25,7 +25,8 @@ public_keys = keys["keys"]["public_keys"]
 private_keys = keys["keys"]["private_keys"]
 # ? ===========================================================================
 
-F = 10
+# TODO: Change constants
+F = 0
 NUM_NODES = 5  # 31 #?CHANGE LATER
 MAX_ROUND = 20
 T_ROUND = 30
@@ -71,14 +72,14 @@ def follower_node(leader_id):
             if sub in socks:
                 msg = sub.recv_multipart()
                 # ? ===============================================================
-                # SECTION Send Signed Observation
+                # SECTION Send Signed OBSERVATION to Leader
 
                 if msg[0] == b'OBSERVE-REQ':
+                    print("RECEIVED OBSERVE-REQ")
                     if sub.get(zmq.IDENTITY).decode() != follower.leader_id:
                         print("Message sender should be the leader")
                         return
-                    print(
-                        "Received OBSERVE-REQ from {}".format(sub.get(zmq.IDENTITY).decode()))
+
                     round_n = loads(msg[1])["round_n"]
                     follower.round_num = round_n
                     if round_n > MAX_ROUND:
@@ -93,24 +94,121 @@ def follower_node(leader_id):
                     msg_hash = compute_hash_on_elements(
                         [follower.epoch, round_n, observation])
                     signature = sign(msg_hash, follower.private_key)
-                    sleep(1)
+
+                    if NODE_IDX % 2 == 0:
+                        sleep(0.1 * NODE_IDX)
+                    sleep(1 + 0.02 * NODE_IDX)
                     publisher.send_multipart(
                         [b'OBSERVE', dumps({"round_n": round_n, "observation": observation, "signature": signature})])
 
+                # _ !SECTION
+                # ? ===============================================================
+                # SECTION Send Signed REPORT to Leader
+                if msg[0] == b'REPORT-REQ':
+                    print("RECEIVED REPORT-REQ")
+                    if sub.get(zmq.IDENTITY).decode() != follower.leader_id:
+                        print("Message sender should be the leader")
+                        return
+
+                    round_n, report = loads(
+                        msg[1])["round_n"], loads(msg[1])["report"]
+
+                    if round_n != follower.round_num:
+                        print("Round number mismatch")
+                        return
+                    if follower.sentreport:
+                        print("Report already sent")
+                        return
+                    if follower.completedround:
+                        print("Round already completed")
+                        return
+
+                    if not follower.verify_report_sorted(report):
+                        print('ERROR: Report is not sorted')
+                        return
+
+                    for i in range(len(report.observations)):
+                        msg_hash = compute_hash_on_elements(
+                            [follower.epoch, round_n, observation])
+                        node_idx = int(report.observers[2+2*i:4+2*i], 16)
+
+                        r_sig, s_sig = report.signatures[i]
+                        if not verify(msg_hash, r_sig, s_sig, public_keys[node_idx]):
+                            print('ERROR: Signature verification failed')
+                            return
+
+                    # TODO: If should_report else complete_round
+
+                    signature = report.sign_report(follower.private_key)
+
+                    sleep(1)
+                    follower.sentreport = True
+                    publisher.send_multipart(
+                        [b'REPORT', dumps({"round_n": round_n, "report": report, "signature": signature})])
 
                 # _ !SECTION
-                # # ? ===============================================================
-                # SECTION Send Signed Observation
-                # if msg[0] == b'REPORT-REQ':
-                #     round_n, report = loads(
-                #         msg[1])["round_n"], loads(msg[1])["report"]
-                #     print(f"report_req: {str(report)}")
-                #     # TODO: add follower.send_signed_report(round_n, report)
-                #     sleep(1)
-                #     publisher.send_multipart(
-                #         [b'REPORT', dumps({"round_n": round_n, "report": report, "signature": (234, 567)})])
+                # ? ===============================================================
+                # _ SECTION Receive Final report and send echo to other nodes
+                if msg[0] == b'FINAL':
+                    print("RECEIVED FINAL")
+
+                    # Where report bundle is (epoch, round_n, report, signatures, signers)
+                    round_n, report_bundle = loads(
+                        msg[1])["round_n"], loads(msg[1])["report_bundle"]
+                    e, r, report, signatures, signers = report_bundle
+
+                    if round_n != follower.round_num or r != follower.round_num:
+                        print("Round number mismatch")
+                        return
+                    if follower.sentecho:
+                        print("Echo already sent")
+                        return
+
+                    if follower.verify_attested_report(report_bundle):
+                        follower.sentecho = report_bundle
+
+                        publisher.send_multipart(
+                            [b'FINAL-ECHO', dumps({"round_n": round_n, "report_bundle": report_bundle})])
+
                 # _ !SECTION
-                # # ? ===============================================================
-                # # ? ===============================================================
+                # ? ===============================================================
+                 # ? ===============================================================
+                # _ SECTION Receive Final echo
+                if msg[0] == b'FINAL-ECHO':
+                    print("RECEIVED FINAL-ECHO")
+
+                    # Where report bundle is (epoch, round_n, report, signatures, signers)
+                    round_n, report_bundle = loads(
+                        msg[1])["round_n"], loads(msg[1])["report_bundle"]
+                    e, r, report, signatures, signers = report_bundle
+
+                    node_idx = int(sub.get(zmq.IDENTITY).decode())
+
+                    if round_n != follower.round_num or r != follower.round_num:
+                        print("Round number mismatch")
+                        return
+                    if follower.receivedecho[node_idx]:
+                        print("ERROR: Already received an echo from this node")
+                        return
+                    if follower.completedround:
+                        print('ERROR: Round has already been completed')
+
+                    if follower.verify_attested_report(report_bundle):
+                        follower.receivedecho[node_idx] = True
+                        if not follower.sentecho:
+                            follower.sentecho = report_bundle
+                            publisher.send_multipart(
+                                [b'FINAL-ECHO', dumps({"round_n": round_n, "report_bundle": report_bundle})])
+
+                        if follower.count_received_echoes() == 4:  # TODO > F:
+                            print("Invoking Transmission")
+                            # TODO: Invoke transmit and complete_round
+                            follower.complete_round()
+                    else:
+                        print("Report attestation failed")
+                # _ !SECTION
+                # ? ===============================================================
+
+
 if __name__ == "__main__":
     follower_node("0")

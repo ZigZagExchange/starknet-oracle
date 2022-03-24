@@ -20,12 +20,13 @@ f.close()
 rawReportContext = calldata["cairo-calldata"]["rawReportContext"]
 rawObservers = calldata["cairo-calldata"]["rawObservers"]
 signer_pub_keys = calldata["cairo-calldata"]["signer_public_keys"]
+signer_pub_keys_reordered = calldata["cairo-calldata"]["signer_public_keys_reordered"]
 transmitter_pub_keys = calldata["cairo-calldata"]["transmitter_public_keys"]
 transmitter_priv_keys = calldata["cairo-calldata"]["transmitter_private_keys"]
 
-r_sigs1 = calldata["cairo-calldata"]["calldata1"]["r_sigs"]
-s_sigs1 = calldata["cairo-calldata"]["calldata1"]["s_sigs"]
-observations1 = calldata["cairo-calldata"]["calldata1"]["observations"]
+r_sigs = calldata["cairo-calldata"]["calldata1"]["r_sigs"]
+s_sigs = calldata["cairo-calldata"]["calldata1"]["s_sigs"]
+observations = calldata["cairo-calldata"]["calldata1"]["observations"]
 # ============   ============   ============   ==============
 
 
@@ -130,3 +131,47 @@ async def test_sigs(contract_factory):
         calldata=[])
 
     print(res.result)
+
+
+@pytest.mark.asyncio
+async def test_verify_sigs_reordered(contract_factory):
+    starknet, contract, owner_acc = contract_factory
+
+    await contract.set_signers(signer_pub_keys_reordered, 0).invoke()
+
+    res = await contract.test_verify_all_sigs_reordered(
+        int(rawReportContext, 16),
+        int(rawObservers[:2*len(observations)], 16),
+        observations,
+        r_sigs,
+        s_sigs
+    ).call()
+
+    print(res.result)
+
+
+@pytest.mark.asyncio
+async def test_get_signer(contract_factory):
+    starknet, contract, owner_acc = contract_factory
+
+    await contract.set_signers(signer_pub_keys_reordered, 0).invoke()
+
+    res = await contract.get_signer(6).call()
+
+    print(res.result)
+
+
+# v- 0.8.0
+# @pytest.mark.asyncio
+# async def test_get_tx_info(contract_factory):
+#     starknet, contract, owner_acc = contract_factory
+
+#     res = await owner.send_transaction(
+#         account=owner_acc,
+#         to=contract.contract_address,
+#         selector_name='test_get_tx_info',
+#         calldata=[])
+
+#     # res = await contract.test_get_tx_info().call()
+
+#     print(res.result)
