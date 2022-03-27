@@ -28,8 +28,8 @@ private_keys = keys["keys"]["private_keys"]
 
 # TODO: Change constants
 F = 1
-T_PROGRESS = 31
-T_RESEND = 300
+T_PROGRESS = 90
+T_RESEND = 20
 
 NODE_IDX = int(sys.argv[1])
 PORT_NUM = 5560 + NODE_IDX
@@ -62,8 +62,8 @@ class PaceMaker(PacemakerState):
     def run(self):
         sleep(3)
         self.initilize(1, self.progress_timer, self.publisher)
-        self.publisher.send_multipart(
-            [b"NEW-EPOCH", dumps({"new_epoch": self.ne})])
+        # self.publisher.send_multipart(
+        #     [b"NEW-EPOCH", dumps({"new_epoch": self.ne})])
         while True:
 
             try:
@@ -87,7 +87,8 @@ class PaceMaker(PacemakerState):
                             self.ne, self.publisher, self.resend_timer)
 
                     if msg[0] == b'CHANGE-LEADER':
-                        print("CHANGE-LEADER")
+                        # print("CHANGE-LEADER epoch {} from {} ".format(
+                        # self.current_epoch, sub.get(zmq.IDENTITY).decode()))
                         self.progress_timer.cancel()
                         self.send_new_epoch(
                             max(self.ne, self.current_epoch + 1), self.publisher, self.resend_timer)

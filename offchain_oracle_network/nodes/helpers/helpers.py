@@ -11,16 +11,18 @@ node_identities = {
 }
 
 
-def subscribe_to_other_nodes_follower(context):
+def subscribe_to_other_nodes_follower(context, leader_id):
     subscriptions = []
     for name, port in node_identities.items():
         sub = context.socket(zmq.SUB)
         sub.connect(f"tcp://localhost:{port}")
-        # TODO: add pacemaker events
+        # if int(name) == leader_id:
         sub.setsockopt(zmq.SUBSCRIBE, b'OBSERVE-REQ')
         sub.setsockopt(zmq.SUBSCRIBE, b'REPORT-REQ')
         sub.setsockopt(zmq.SUBSCRIBE, b'FINAL')
+        # else:
         sub.setsockopt(zmq.SUBSCRIBE, b'FINAL-ECHO')
+
         sub.setsockopt(zmq.IDENTITY, name.encode())
         subscriptions.append(sub)
     return subscriptions
@@ -31,7 +33,6 @@ def subscribe_to_other_nodes_leader(context):
     for name, port in node_identities.items():
         sub = context.socket(zmq.SUB)
         sub.connect(f"tcp://localhost:{port}")
-        # TODO: add pacemaker events
         sub.setsockopt(zmq.SUBSCRIBE, b'OBSERVE')
         sub.setsockopt(zmq.SUBSCRIBE, b'REPORT')
         sub.setsockopt(zmq.SUBSCRIBE, b'START-EPOCH')
@@ -50,6 +51,7 @@ def subscribe_to_other_nodes_pacemaker(context):
         sub.setsockopt(zmq.SUBSCRIBE, b'PROGRESS')
         sub.setsockopt(zmq.SUBSCRIBE, b'CHANGE-LEADER')
         sub.setsockopt(zmq.SUBSCRIBE, b'NEW-EPOCH')
+        sub.setsockopt(zmq.SUBSCRIBE, b'SEND-NEW-EPOCH')
         sub.setsockopt(zmq.IDENTITY, name.encode())
         subscriptions.append(sub)
     return subscriptions
@@ -73,5 +75,6 @@ class ResettingTimer(object):
             self.timer.cancel()
 
     def start(self):
+        self.cancel()
         self.timer = Timer(self.interval, self.callback)
         self.timer.start()
