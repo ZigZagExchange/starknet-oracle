@@ -1,99 +1,145 @@
+from pickle import dumps
+import sys
+import json
 import time
+from follower_node import FollowerNode
+from leader_node import LeaderNode
 import zmq
 import threading
 
-F = 10
-NUM_NODES = 31
-T_PROGRESS = 30
-T_RESEND = 10
+# ? ===========================================================================
+file_path = "../../tests/dummy_data/dummy_keys.json"
+f = open(file_path, 'r')
+keys = json.load(f)
+f.close()
+
+public_keys = keys["keys"]["public_keys"]
+private_keys = keys["keys"]["private_keys"]
+# ? ===========================================================================
 
 
-class Pacemaker:
+# TODO Change the constants
+
+NUM_NODES = 4
+MAX_ROUNDS = 20
+F = NUM_NODES//3
+
+NODE_IDX = int(sys.argv[1])
+
+
+class PacemakerState:
     def __init__(self, index):
         self.current_epoch = 0
         self.current_leader = 0
         self.ne = 0
-        self.new_epochs = []
+        self.new_epochs = [0] * NUM_NODES
         self.index = index
-        self.resend_timer = threading.Timer(T_RESEND, self.on_resend)
-        self.progress_timer = threading.Timer(
-            T_PROGRESS, self.end_leader_campaign)
+        self.follower_node = None
+        self.leader_node = None
 
     def leader(self, epoch):
         # TODO: Implement a more secure leader function
-        return (epoch + 123) % NUM_NODES
+        return (3 * epoch + 123) % NUM_NODES
 
     def on_progress(self):
-        restart_timer(self.progress_timer)
+        self.progress_timer.start()
 
-    def initilize(self, epoch, leader):
-        # TODO: Initialize instance of report generation
-        restart_timer(self.progress_timer)
+    def initilize(self, epoch, timer, publisher):
+        self.current_epoch = epoch
+        self.current_leader = self.leader(epoch)
+        self.ne = epoch
 
-    def send_new_epoch(self, new_e):
-        # TODO: Send a message to all nodes (new epoch)
+        print("In initilize")
+
+        if not self.follower_node:
+            self.follower_node = FollowerNode(
+                self.index, epoch, self.current_leader, private_keys[self.index],
+                publisher, NUM_NODES, MAX_ROUNDS)
+            self.follower_node.run()
+            print("Follower node started")
+        else:
+            self.follower_node.reset(
+                epoch, self.leader(epoch))
+            print("Follower node reset")
+
+        if not self.leader_node and self.current_leader == self.index:
+            self.leader_node = LeaderNode(
+                self.index, epoch, self.current_leader,
+                publisher, NUM_NODES, MAX_ROUNDS)
+            self.leader_node.run()
+            print("Leader node started")
+        elif self.current_leader == self.index:
+            self.leader_node.run()
+            print("Leader node reset")
+        elif self.leader_node:
+            self.leader_node.stop()
+            print("Leader node stopped")
+
+        print("Sleeping 5 seconds for nodes to fall back in sync")
+        time.sleep(5)
+        print(
+            "========================================================================\n")
+        timer.start()
+
+    def send_new_epoch(self, new_e, publisher, resend_timer):
+        publisher.send_multipart(
+            [b"NEW-EPOCH", dumps({"new_epoch": new_e})])
         self.ne = new_e
-        restart_timer(self.resend_timer)
+        resend_timer.start()
 
-    def end_leader_campaign(self):
-        self.progress_timer.cancel()
-        self.send_new_epoch(max(self.current_epoch+1, self.ne))
-
-    def on_resend(self):
-        self.send_new_epoch(self.ne)
-
-    def receive_new_epoch(self, e_new, pj):
-        ''' Params:
-            e_new - is the received new_epoch
-            pj - is the jth node that sent the e_new'''
-        self.new_epochs[pj] = max(self.new_epochs[pj], e_new)
-
-    def request_proceed_to_next_epoch(self):
+    def request_proceed_to_next_epoch(self, publisher, timer):
         '''
         This function is called if more than F nodes want to
         proceed to epoch that is grater than this nodes ne 
-        <=> {p j ∈ P n | newepoch[j] > ne} > F
+        <=> {pj ∈ Pn | newepoch[j] > ne} > F
         '''
         sorted_new_epochs = self.new_epochs.copy()
         sorted_new_epochs.sort(reverse=True)
-        e_new = sorted_new_epochs[F+1]
+        e_new = sorted_new_epochs[F]
 
-        self.send_new_epoch(max(e_new, self.ne))
+        self.send_new_epoch(max(e_new, self.ne), publisher, timer)
 
-    # if more than 2F nodes want to proceed to new epoch
-    # {p j ∈ P n | newepoch[j] > e} > 2f
-
-    def proceed_to_next_epoch(self):
+    def proceed_to_next_epoch(self, publisher, progress_timer):
         '''
         This function is called if more than 2F nodes want to
-        proceed to a new epoch <=> {p j ∈ P n | newepoch[j] > e} > F
-        this means that the leader is too slow??
+        proceed to a new epoch <=> {p j ∈ P n | newepoch[j] > e} > 2F
+        This usually  means that the leader is too slow
         '''
         sorted_new_epochs = self.new_epochs.copy()
         sorted_new_epochs.sort(reverse=True)
-        e_new = sorted_new_epochs[2*F+1]
+        e_new = sorted_new_epochs[2*F]  # 2F+1-th element
 
         current_epoch = e_new
-        current_leader = self.leader(e_new)
-        ne = max(ne, e_new)
+        # current_leader = self.leader(e_new)
+        self.ne = max(self.ne, e_new)
 
-        self.initilize(current_epoch, current_leader)
+        self.initilize(current_epoch, progress_timer, publisher)
 
-        if current_leader == self.index:
-            # TODO: Invoke event start_epoch(e,l)
-            pass
+        progress_timer.start()
+        if self.current_leader == self.index:
+            print("Sending START-EPOCH from node {}".format(self.index))
+            publisher.send_multipart([b"START-EPOCH"])
 
+    # * HELPERS ==========================================================
 
-def restart_timer(timer):
-    timer.cancel()
-    timer.start()
+    def emit_change_leader_event(self, publisher):
+        publisher.send_multipart([b"CHANGE-LEADER"])
 
+    def emit_send_new_epoch_event(self, publisher):
+        publisher.send_multipart([b"SEND-NEW-EPOCH"])
 
-def main():
+    def count_new_epochs(self):
+        count = 0
+        for e in self.new_epochs:
+            if e > self.ne:
+                count += 1
 
-    while True:
-        pass
+        return count
 
+    def count_new_epochs2(self):
+        count = 0
+        for e in self.new_epochs:
+            if e > self.current_epoch:
+                count += 1
 
-if __name__ == "__main__":
-    main()
+        return count

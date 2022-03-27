@@ -6,18 +6,23 @@ import threading
 from classes.report_class import Report
 
 # TODO: Change the constants
-F = 0
-NUM_NODES = 31
-R_MAX = 20
+# F = 0
 
 
 class LeaderState:
-    def __init__(self, index, epoch):
-        self.index = index   # index of the current node
-        self.epoch = epoch  # the current epoch
-        self.round_num = 0  # round number within the epoch
+    def __init__(self, index, epoch, leader, num_nodes, max_round):
+        # CONSTANTS
+        self.index = index
+        self.num_nodes = num_nodes
+        self.max_round = max_round
+        self.F = num_nodes//3
+        # VARIABLES
+        self.epoch = epoch
+        self.round_num = 0
+        self.leader = leader
         # signed observations of the current round received in OBSERVE messages
-        self.observations = []  # (observation, signature, node_idx)
+        # (observation, signature, node_idx)
+        self.observations = [None] * num_nodes
         self.reports = []  # attested reports of the current round received in REPORT messages
         # the current report sent out for signing (for consistency reasons)
         self.current_report = None
@@ -26,7 +31,7 @@ class LeaderState:
 
     def start_round(self):
         self.round_num += 1
-        self.observations = []
+        self.observations = [None] * self.num_nodes
         self.reports = []
         self.current_report = None
         self.phase = 'OBSERVE'
@@ -40,7 +45,8 @@ class LeaderState:
             return
 
         # where x = (observation, signature, node_idx)
-        report_temp = [x for x in self.observations if x[0]]
+
+        report_temp = [x for x in self.observations if x]
         report_temp.sort(key=lambda x: x[0])
 
         observations = []
@@ -67,29 +73,9 @@ class LeaderState:
         report_msg = {"round_n": self.round_num, "report": report}
         publisher.send_multipart([b"REPORT-REQ", dumps(report_msg)])
 
-    # upon receiving message [REPORT, r , R, τ]
-    def receive_report(self, round_n, report, signature):
-
-        node_idx = 5  # TODO: get node index from message
-
-        if self.round_num != round_n:
-            print('ERROR: Round number mismatch')
-            return
-        if not (self.phase == 'REPORT'):
-            print('ERROR: Phase should be REPORT')
-            return
-        if self.reports[node_idx] != None:
-            print('ERROR: Attested report already received from this node for this round')
-            return
-
-        # TODO: Verify signature of report
-
-        self.reports.append((report, signature, node_idx))
-
     def finalize_report(self, report, publisher):
-        print("self.phase: ", self.phase)
         if not self.phase == 'REPORT':
-            print('ERROR: Phase should be REPORT')
+            # print('ERROR: Phase should be REPORT')
             return
 
         report, signatures, signer_idxs = self.count_reports(report)
@@ -103,9 +89,17 @@ class LeaderState:
                          report, signatures, raw_signers)
 
         msg = {"round_n": self.round_num, "report_bundle": report_bundle}
-        print("Sending finalized report_bundle: ", report_bundle)
         publisher.send_multipart([b"FINAL", dumps(msg)])
         self.phase = 'FINAL'
+
+    def reset_state(self, new_epoch, new_leader):
+        self.round_num = 0
+        self.epoch = new_epoch
+        self.leader = new_leader
+        self.observations = [None] * self.num_nodes
+        self.reports = []
+        self.current_report = None
+        self.phase = None
 
     # * ====================================================================================
     # * HELPER FUNCTIONS
@@ -139,7 +133,7 @@ class LeaderState:
                 else:
                     print("ERROR: report missmatch")
 
-        if count > F:
+        if count > self.F:
             return report, sigs, idxs
 
         else:

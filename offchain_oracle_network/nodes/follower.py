@@ -7,14 +7,9 @@ import json
 from starkware.cairo.common.hash_state import compute_hash_on_elements
 from starkware.crypto.signature.signature import sign, verify
 
-from pacemaker import Pacemaker
 
 # TODO: change constants
 F = 0
-NUM_NODES = 31
-MAX_ROUND = 20
-T_PROGRESS = 30
-T_RESEND = 10
 
 # ? ===========================================================================
 file_path = "../../tests/dummy_data/dummy_keys.json"
@@ -27,11 +22,15 @@ private_keys = keys["keys"]["private_keys"]
 # ? ===========================================================================
 
 
-class FollowerState(Pacemaker):
-    def __init__(self, index, epoch, leader_id):
-        super().__init__(index)
-        self.private_key = 0
+class FollowerState():
+    def __init__(self, index, epoch, leader_id, priv_key, num_nodes, max_round):
+        # CONSTANTS
+        self.private_key = priv_key
+        self.num_nodes = num_nodes
+        self.max_round = max_round
+        self.F = num_nodes//3
         self.index = index
+        # VARIBLES
         self.epoch = epoch
         self.leader_id = leader_id
         self.round_num = 0  # round number within the epoch
@@ -39,10 +38,16 @@ class FollowerState(Pacemaker):
         self.sentreport = False  # indicates if REPORT message has been sent for this round
         self.completedround = False  # indicates if current round is finished
         # jth element true if received FINAL-ECHO message with valid attested report from node j
-        self.receivedecho = [False] * NUM_NODES
+        self.receivedecho = [False] * self.num_nodes
 
-    def set_private_key(self, priv_key):
-        self.private_key = priv_key
+    def reset_state(self, new_epoch, leader_id):
+        self.epoch = new_epoch
+        self.leader_id = leader_id
+        self.round_num = 0
+        self.sentecho = None
+        self.sentreport = False
+        self.completedround = False
+        self.receivedecho = [False] * self.num_nodes
 
     def complete_round(self):
         self.completedround = True
@@ -79,10 +84,6 @@ class FollowerState(Pacemaker):
             if report.observations[i] > report.observations[i + 1]:
                 return False
         return True
-
-    def should_report(self, report):
-        R, t_R = self.get_last_report()
-        # TODO: Return true iff report should be reported
 
     def get_last_report(self):
 

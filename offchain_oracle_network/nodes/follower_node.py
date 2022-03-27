@@ -26,27 +26,21 @@ private_keys = keys["keys"]["private_keys"]
 # ? ===========================================================================
 
 # TODO: Change constants
-F = 0
-NUM_NODES = 5  # 31 #?CHANGE LATER
-MAX_ROUND = 20
-T_ROUND = 30
-T_GRACE = 10
 
-NODE_IDX = int(sys.argv[1])
-PORT_NUM = 5560 + NODE_IDX
 
-temp_epoch_num = 12345
+# TEMP_NUM_NODES = 2
 
 
 class FollowerNode(FollowerState):
-    def __init__(self, index, epoch, leader_id):
-        super().__init__(index, epoch, leader_id)
-        self.set_private_key(priv_key=private_keys[index])
+    def __init__(self, index, epoch, leader_id, priv_key, publisher, num_nodes, max_round):
+        super().__init__(index, epoch, leader_id, priv_key, num_nodes, max_round)
         self.context = zmq.Context()
+        # self.port_num = 5560 + index
         # * This is the socket from which the follower will brodcast messages to other oracles
-        self.publisher = self.context.socket(zmq.PUB)
-        self.publisher.sndhwm = 1100000
-        self.publisher.bind("tcp://*:{}".format(PORT_NUM))
+        self.publisher = publisher
+        # self.publisher = self.context.socket(zmq.PUB)
+        # self.publisher.sndhwm = 1100000
+        # self.publisher.connect("tcp://localhost:{}".format(self.port_num))
         # * These sockets are used to receive messages from other oracles
         self.subscriptions = h.subscribe_to_other_nodes_follower(self.context)
         # * Poller is used to reduce the cpu strain
@@ -55,7 +49,8 @@ class FollowerNode(FollowerState):
         for sub in self.subscriptions:
             self.poller.register(sub, zmq.POLLIN)
 
-    def run(self):
+    def run_(self):  # TODO: Make this a thread so it can be stopped
+
         while True:
 
             try:
@@ -71,29 +66,36 @@ class FollowerNode(FollowerState):
                     # SECTION Send Signed OBSERVATION to Leader
 
                     if msg[0] == b'OBSERVE-REQ':
-                        print("RECEIVED OBSERVE-REQ")
-                        if sub.get(zmq.IDENTITY).decode() != self.leader_id:
-                            print("Message sender should be the leader")
-                            return
+                        print(
+                            "Received OBSERVE-REQ at node {} from {} for round {}"
+                            .format(self.index, sub.get(zmq.IDENTITY).decode(), loads(msg[1])["round_n"]))
+                        if int(sub.get(zmq.IDENTITY).decode()) != self.leader_id:
+                            print(
+                                f"\nmessage from {sub.get(zmq.IDENTITY).decode()}")
+                            print(f"Leader_id {self.leader_id}")
+                            print("Message sender should be the leader\n")
+                            continue
 
                         round_n = loads(msg[1])["round_n"]
                         self.round_num = round_n
-                        if round_n > MAX_ROUND:
-                            self.publisher.send_multipart([b'CHANGE-LEADER'])
+                        if round_n > self.max_round:
+                            self.publisher.send_multipart(
+                                [b'CHANGE-LEADER'])
+                            continue
 
                         self.sentecho = None
                         self.sentreport = False
                         self.completedround = False
-                        self.receivedecho = [False] * NUM_NODES
+                        self.receivedecho = [False] * self.num_nodes
 
                         observation = self.get_price()
                         msg_hash = compute_hash_on_elements(
                             [self.epoch, round_n, observation])
                         signature = sign(msg_hash, self.private_key)
 
-                        if NODE_IDX % 2 == 0:
-                            sleep(0.1 * NODE_IDX)
-                        sleep(1 + 0.02 * NODE_IDX)
+                        if self.index % 2 == 0:
+                            sleep(0.1 * self.index)
+                        sleep(1 + 0.02 * self.index)
                         self.publisher.send_multipart(
                             [b'OBSERVE', dumps({"round_n": round_n, "observation": observation, "signature": signature})])
 
@@ -101,37 +103,37 @@ class FollowerNode(FollowerState):
                     # ? ===============================================================
                     # SECTION Send Signed REPORT to Leader
                     if msg[0] == b'REPORT-REQ':
-                        print("RECEIVED REPORT-REQ")
-                        if sub.get(zmq.IDENTITY).decode() != self.leader_id:
+                        if int(sub.get(zmq.IDENTITY).decode()) != self.leader_id:
                             print("Message sender should be the leader")
-                            return
+                            continue
 
                         round_n, report = loads(
                             msg[1])["round_n"], loads(msg[1])["report"]
 
                         if round_n != self.round_num:
-                            print("Round number mismatch")
-                            return
+                            print("Round number mismatch in report REQ")
+                            continue
                         if self.sentreport:
                             print("Report already sent")
-                            return
+                            continue
                         if self.completedround:
                             print("Round already completed")
-                            return
+                            continue
 
                         if not self.verify_report_sorted(report):
                             print('ERROR: Report is not sorted')
-                            return
+                            continue
 
                         for i in range(len(report.observations)):
                             msg_hash = compute_hash_on_elements(
                                 [self.epoch, round_n, observation])
-                            node_idx = int(report.observers[2+2*i:4+2*i], 16)
+                            node_idx = int(
+                                report.observers[2+2*i:4+2*i], 16)
 
                             r_sig, s_sig = report.signatures[i]
                             if not verify(msg_hash, r_sig, s_sig, public_keys[node_idx]):
                                 print('ERROR: Signature verification failed')
-                                return
+                                continue
 
                         # TODO: If should_report else complete_round
 
@@ -146,10 +148,9 @@ class FollowerNode(FollowerState):
                     # ? ===============================================================
                     # _ SECTION Receive Final report and send echo to other nodes
                     if msg[0] == b'FINAL':
-                        print("RECEIVED FINAL")
-                        if sub.get(zmq.IDENTITY).decode() != self.leader_id:
+                        if int(sub.get(zmq.IDENTITY).decode()) != self.leader_id:
                             print("Message sender should be the leader")
-                            return
+                            continue
 
                         # Where report bundle is (epoch, round_n, report, signatures, signers)
                         round_n, report_bundle = loads(
@@ -157,11 +158,11 @@ class FollowerNode(FollowerState):
                         e, r, report, signatures, signers = report_bundle
 
                         if round_n != self.round_num or r != self.round_num:
-                            print("Round number mismatch")
-                            return
+                            print("Round number mismatch in FINAL")
+                            continue
                         if self.sentecho:
                             print("Echo already sent")
-                            return
+                            continue
 
                         if self.verify_attested_report(report_bundle):
                             self.sentecho = report_bundle
@@ -174,8 +175,6 @@ class FollowerNode(FollowerState):
                     # ? ===============================================================
                     # _ SECTION Receive Final echo
                     if msg[0] == b'FINAL-ECHO':
-                        print("RECEIVED FINAL-ECHO")
-
                         # Where report bundle is (epoch, round_n, report, signatures, signers)
                         round_n, report_bundle = loads(
                             msg[1])["round_n"], loads(msg[1])["report_bundle"]
@@ -184,14 +183,15 @@ class FollowerNode(FollowerState):
                         node_idx = int(sub.get(zmq.IDENTITY).decode())
 
                         if round_n != self.round_num or r != self.round_num:
-                            print("Round number mismatch")
-                            return
+                            print("Round number mismatch in FINAL-ECHO")
+                            continue
                         if self.receivedecho[node_idx]:
-                            print("ERROR: Already received an echo from this node")
-                            return
+                            print(
+                                "ERROR: Already received an echo from this node")
+                            continue
                         if self.completedround:
-                            print('ERROR: Round has already been completed')
-                            return
+                            # print('ERROR: Round has already been completed')
+                            continue
 
                         if self.verify_attested_report(report_bundle):
                             self.receivedecho[node_idx] = True
@@ -200,8 +200,9 @@ class FollowerNode(FollowerState):
                                 self.publisher.send_multipart(
                                     [b'FINAL-ECHO', dumps({"round_n": round_n, "report_bundle": report_bundle})])
 
-                            if self.count_received_echoes() == 4:  # TODO > F:
-                                print("Invoking Transmission")
+                            if self.count_received_echoes() > self.F:
+                                print(
+                                    f"\nNode {self.index} invoking Transmission for round {self.round_num}\n")
                                 # TODO: Invoke transmit and complete_round
                                 self.complete_round()
                         else:
@@ -209,7 +210,15 @@ class FollowerNode(FollowerState):
                     # _ !SECTION
                     # ? ===============================================================
 
+    def reset(self, new_epoch, new_leader):
+        self.reset_state(new_epoch, new_leader)
 
-if __name__ == "__main__":
-    follower_node = FollowerNode(NODE_IDX, temp_epoch_num, "0")
-    follower_node.run()
+    def run(self):
+        thread = threading.Thread(target=self.run_)
+        thread.start()
+
+
+# if __name__ == "__main__":
+#     follower_node = FollowerNode(
+#         0, 1, 0, private_keys[0],)
+#     follower_node.run()

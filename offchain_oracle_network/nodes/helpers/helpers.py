@@ -6,8 +6,8 @@ node_identities = {
     "1": 5561,
     "2": 5562,
     "3": 5563,
-    "4": 5564,
-    "5": 5565,
+    # "4": 5564,
+    # "5": 5565,
 }
 
 
@@ -41,6 +41,20 @@ def subscribe_to_other_nodes_leader(context):
     return subscriptions
 
 
+def subscribe_to_other_nodes_pacemaker(context):
+    subscriptions = []
+    for name, port in node_identities.items():
+        sub = context.socket(zmq.SUB)
+        sub.connect(f"tcp://localhost:{port}")
+        # TODO: add pacemaker events
+        sub.setsockopt(zmq.SUBSCRIBE, b'PROGRESS')
+        sub.setsockopt(zmq.SUBSCRIBE, b'CHANGE-LEADER')
+        sub.setsockopt(zmq.SUBSCRIBE, b'NEW-EPOCH')
+        sub.setsockopt(zmq.IDENTITY, name.encode())
+        subscriptions.append(sub)
+    return subscriptions
+
+
 class ResettingTimer(object):
 
     def __init__(self, interval, f, *args, **kwargs):
@@ -55,7 +69,8 @@ class ResettingTimer(object):
         self.f(*self.args, **self.kwargs)
 
     def cancel(self):
-        self.timer.cancel()
+        if self.timer:
+            self.timer.cancel()
 
     def start(self):
         self.timer = Timer(self.interval, self.callback)
