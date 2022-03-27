@@ -24,13 +24,16 @@ private_keys = keys["keys"]["private_keys"]
 
 class FollowerState():
     def __init__(self, index, epoch, leader_id, priv_key, num_nodes, max_round):
-        # CONSTANTS
+        '''
+        This is used to store and manipulate the state of the current node
+        and reduce mental complexity of the PacemakerNode
+        '''
         self.private_key = priv_key
         self.num_nodes = num_nodes
         self.max_round = max_round
         self.F = num_nodes//3
         self.index = index
-        # VARIBLES
+
         self.epoch = epoch
         self.leader_id = leader_id
         self.round_num = 0  # round number within the epoch
@@ -49,8 +52,9 @@ class FollowerState():
         self.completedround = False
         self.receivedecho = [False] * self.num_nodes
 
-    def complete_round(self):
+    def complete_round(self, publisher):
         self.completedround = True
+        publisher.send_multipart([b'PROGRESS'])
         # TODO: Invoke event progress
 
     # * =============================================================================================

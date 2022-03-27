@@ -28,16 +28,26 @@ private_keys = keys["keys"]["private_keys"]
 
 # TODO: Change constants
 F = 1
-T_PROGRESS = 90
+T_PROGRESS = 50
 T_RESEND = 20
 
 NODE_IDX = int(sys.argv[1])
 PORT_NUM = 5560 + NODE_IDX
 
-temp_epoch_num = 12345
 
+class PacemakerNode(PacemakerState):
+    '''
+    This node is responsible for keeping all the nodes in sync with each other. 
+    It starts a new report-generation instance every epoch either because the leader
+    is non-responsive or because his mandate has run out.
+    It has its own FollowerNode object, which it initializes only once and 
+    its own LeaderNode object, which it initializes only when it is selected.
+    Nodes that fall offline can sync back up but likely only at the next epoch.
 
-class PaceMaker(PacemakerState):
+    @arguments:
+        - index: the index of the current node (to identify participants in the network)
+    '''
+
     def __init__(self, index):
         super().__init__(index)
         self.context = zmq.Context()
@@ -62,8 +72,6 @@ class PaceMaker(PacemakerState):
     def run(self):
         sleep(3)
         self.initilize(1, self.progress_timer, self.publisher)
-        # self.publisher.send_multipart(
-        #     [b"NEW-EPOCH", dumps({"new_epoch": self.ne})])
         while True:
 
             try:
@@ -79,6 +87,7 @@ class PaceMaker(PacemakerState):
                     # SECTION Send Signed OBSERVATION to Leader
 
                     if msg[0] == b'PROGRESS':
+                        print("PROGRESS made")
                         self.progress_timer.cancel()
                         self.progress_timer.start()
 
@@ -111,5 +120,5 @@ class PaceMaker(PacemakerState):
 
 
 if __name__ == "__main__":
-    pace_maker = PaceMaker(NODE_IDX)
+    pace_maker = PacemakerNode(NODE_IDX)
     pace_maker.run()

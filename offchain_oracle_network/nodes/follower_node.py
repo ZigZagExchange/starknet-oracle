@@ -25,13 +25,25 @@ public_keys = keys["keys"]["public_keys"]
 private_keys = keys["keys"]["private_keys"]
 # ? ===========================================================================
 
-# TODO: Change constants
-
-
-# TEMP_NUM_NODES = 2
-
 
 class FollowerNode(FollowerState):
+
+    '''
+    This node is run consistently, in contrast to the LeaderNode,
+    and only resets its state, when it receives a new epoch.
+    It is listening for requests from the leader and sending signed observations.
+    Nodes that fall offline can connect back to the network,
+    but will likely only sync back on the next epoch.
+
+    @arguments:
+        - index: the index of the current node (to identify participants in the network)
+        - epoch: the epoch number
+        - leader_id: the current leader's index
+        - publisher: the publisher socket (see below)
+        - num_nodes: the number of nodes in the network
+        - max_round: the maximum number of rounds leader is allowed to run before choosing a new one
+    '''
+
     def __init__(self, index, epoch, leader_id, priv_key, publisher, num_nodes, max_round):
         super().__init__(index, epoch, leader_id, priv_key, num_nodes, max_round)
         self.context = zmq.Context()
@@ -46,7 +58,7 @@ class FollowerNode(FollowerState):
         for sub in self.subscriptions:
             self.poller.register(sub, zmq.POLLIN)
 
-    def run_(self):  # TODO: Make this a thread so it can be stopped
+    def run_(self):
 
         while True:
 
@@ -65,15 +77,11 @@ class FollowerNode(FollowerState):
                         msg = sub.recv_multipart()
                         # ? ===============================================================
                         # SECTION Send Signed OBSERVATION to Leader
-
                         if msg[0] == b'OBSERVE-REQ':
                             print(
                                 "Received OBSERVE-REQ at node {} from {} for round {}"
                                 .format(self.index, sub.get(zmq.IDENTITY).decode(), loads(msg[1])["round_n"]))
                             if int(sub.get(zmq.IDENTITY).decode()) != self.leader_id:
-                                print(
-                                    f"\nmessage from {sub.get(zmq.IDENTITY).decode()}")
-                                print(f"Leader_id {self.leader_id}")
                                 print("Message sender should be the leader\n")
                                 continue
 
@@ -204,8 +212,8 @@ class FollowerNode(FollowerState):
                                 if self.count_received_echoes() > self.F:
                                     print(
                                         f"\nNode {self.index} invoking Transmission for round {self.round_num}  \n")
-                                    # TODO: Invoke transmit and complete_round
-                                    self.complete_round()
+                                    # TODO: Invoke transmit
+                                    self.complete_round(self.publisher)
                             else:
                                 print("Report attestation failed")
                         # _ !SECTION
@@ -218,24 +226,15 @@ class FollowerNode(FollowerState):
                         continue
 
     def reset(self, new_epoch, new_leader):
-        # self.context.destroy(linger=0)
-        # self.context = zmq.Context()
-        # for sub in self.subscriptions:
-        #     sub.close()
-        # self.subscriptions = h.subscribe_to_other_nodes_follower(
-        #     self.context, new_leader)
-        # self.poller = zmq.Poller()
-        # for sub in self.subscriptions:
-        #     self.poller.register(sub, zmq.POLLIN)
+        '''
+        This function resets the node to a new epoch and leader.
+        '''
         self.reset_state(new_epoch, new_leader)
         print("leader: ", self.leader_id)
 
     def run(self):
+        '''
+        This function runs the node as a thread, so that it can run parallel with the LeaderNode
+        '''
         thread = threading.Thread(target=self.run_)
         thread.start()
-
-
-# if __name__ == "__main__":
-#     follower_node = FollowerNode(
-#         0, 1, 0, private_keys[0],)
-#     follower_node.run()

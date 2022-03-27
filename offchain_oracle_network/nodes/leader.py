@@ -10,16 +10,19 @@ from classes.report_class import Report
 
 
 class LeaderState:
-    def __init__(self, index, epoch, leader, num_nodes, max_round):
-        # CONSTANTS
+    def __init__(self, index, epoch, num_nodes, max_round):
+        '''
+        This is used to store and manipulate the state of the current node
+        and reduce mental complexity of the LeaderNode
+        '''
+
         self.index = index
         self.num_nodes = num_nodes
         self.max_round = max_round
         self.F = num_nodes//3
-        # VARIABLES
+
         self.epoch = epoch
         self.round_num = 0
-        self.leader = leader
         # signed observations of the current round received in OBSERVE messages
         # (observation, signature, node_idx)
         self.observations = [None] * num_nodes
@@ -92,15 +95,6 @@ class LeaderState:
         publisher.send_multipart([b"FINAL", dumps(msg)])
         self.phase = 'FINAL'
 
-    def reset_state(self, new_epoch, new_leader):
-        self.round_num = 0
-        self.epoch = new_epoch
-        self.leader = new_leader
-        self.observations = [None] * self.num_nodes
-        self.reports = []
-        self.current_report = None
-        self.phase = None
-
     # * ====================================================================================
     # * HELPER FUNCTIONS
 
@@ -138,33 +132,3 @@ class LeaderState:
 
         else:
             return None, None, None
-
-
-#(report, signature, node_idx)
-
-#
-
-#
-
-#
-
-
-#
-    # def count_reports(self):
-
-    #     report_counts = {}
-    #     report_idxs = []
-    #     for i in range(len(self.reports)):
-    #         if self.reports[i] is not None:
-    #             rep = self.reports[i][0]
-
-    #             report_counts[rep] = report_counts[rep] + \
-    #                 1 if report_counts[rep] else 1
-
-    #     report = max(report_counts, key=report_counts.get)
-    #     count = report_counts[report]
-
-    #     if count > F:
-    #         return report
-    #     else:
-    #         return None

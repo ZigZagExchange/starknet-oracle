@@ -15,6 +15,7 @@ import helpers.helpers as h
 from leader import LeaderState
 
 # ? ===========================================================================
+# TODO REMOVE TESTING KEYS
 file_path = "../../tests/dummy_data/dummy_keys.json"
 f = open(file_path, 'r')
 keys = json.load(f)
@@ -30,10 +31,23 @@ T_GRACE = 3
 
 
 class LeaderNode(LeaderState):
-    def __init__(self, index, epoch, leader, publisher, num_nodes, max_round):
-        super().__init__(index, epoch, leader, num_nodes, max_round)
+    '''
+    This node is only initialized for one instance of the report-generation protocol,
+    when the current node is selected to be leader and is destroyed when it ends.
+    It runs in a separate thread, alongside the follower_node and is responsible for
+    cordenating other nodes until the end of the epoch.
+    @arguments:
+        - index: the index of the current node (to identify participants in the network)
+        - epoch: the epoch number
+        - publisher: the publisher socket (see below)
+        - num_nodes: the number of nodes in the network
+        - max_round: the maximum number of rounds leader is allowed to run before choosing a new one
+    '''
+
+    def __init__(self, index, epoch, publisher, num_nodes, max_round):
+        super().__init__(index, epoch, num_nodes, max_round)
         self.context = zmq.Context()
-        # # * This is the socket from which the follower will brodcast messages to other oracles
+        # * This is the socket from which the follower will brodcast messages to other oracles
         self.publisher = publisher
         # * These sockets are used to receive messages from other oracles
         self.subscriptions = h.subscribe_to_other_nodes_leader(self.context)
@@ -41,17 +55,16 @@ class LeaderNode(LeaderState):
         self.poller = zmq.Poller()
         for sub in self.subscriptions:
             self.poller.register(sub, zmq.POLLIN)
-        # * Timers
+        # * round_timer is used to start a new round after T_ROUND seconds
         self.round_timer = h.ResettingTimer(
             T_ROUND, self.emit_new_round_event, self.publisher)
+        # * grace_timer is used to give slow nodes T_GRACE seconds to send their observations
         self.grace_timer = h.ResettingTimer(
             T_GRACE, self.assemble_report, self.publisher)
         self.stop_event = threading.Event()
 
     def run_(self):
         sleep(1)
-        # self.publisher.send_multipart([b"START-EPOCH"])
-        print("Leader Running")
         while True:
 
             try:
@@ -123,7 +136,7 @@ class LeaderNode(LeaderState):
                                 print("ERROR: Signature verification failed")
                         # _ !SECTION
                         # ? ===========================================================================
-                        # SECTION Recieve an observation
+                        # SECTION Recieve a Report
                         if msg[0] == b'REPORT':
                             round_n, report, signature = loads(msg[1])["round_n"], loads(msg[1])[
                                 "report"], loads(msg[1])["signature"]
@@ -153,25 +166,16 @@ class LeaderNode(LeaderState):
                         continue
 
     def run(self):
-        # self.stop_event.clear()
-        # self.resubscribe()
+        '''
+        This function starts a thread so it can run in parallel with the follower_node
+        '''
         thread = threading.Thread(target=self.run_)
         thread.start()
 
-    # def start(self, new_epoch, new_leader):
-    #     self.round_timer.cancel()
-    #     self.reset_state(new_epoch, new_leader)
-    #     self.run()
-    #     self.round_timer.start()
-
     def stop(self):
+        '''
+        This function stops the running thread so it can be removed for garbage collection
+        '''
         self.round_timer.cancel()
         self.stop_event.set()
         self.context.destroy(linger=0)
-
-    # def resubscribe(self):
-    #     self.context = zmq.Context()
-    #     self.subscriptions = h.subscribe_to_other_nodes_leader(self.context)
-    #     self.poller = zmq.Poller()
-    #     for sub in self.subscriptions:
-    #         self.poller.register(sub, zmq.POLLIN)

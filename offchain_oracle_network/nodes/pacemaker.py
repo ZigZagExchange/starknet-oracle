@@ -24,13 +24,18 @@ private_keys = keys["keys"]["private_keys"]
 # TODO Change the constants
 
 NUM_NODES = 4
-MAX_ROUNDS = 20
+MAX_ROUNDS = 5
 F = NUM_NODES//3
 
 NODE_IDX = int(sys.argv[1])
 
 
 class PacemakerState:
+    '''
+    This is used to store and manipulate the state of the current node
+    and reduce mental complexity of the PacemakerNode
+    '''
+
     def __init__(self, index):
         self.current_epoch = 0
         self.current_leader = 0
@@ -56,7 +61,7 @@ class PacemakerState:
         print("INITILIZING epoch {}".format(epoch))
 
         t = time.time()
-        if t - self.latest_init_time < timer.interval:  # TODO: T_PROGRESS
+        if t - self.latest_init_time < timer.interval:
             print("ERROR: Node {} is trying to initialize epoch {} too fast —> Skipping ...".format(
                 self.index, self.current_epoch))
             return
@@ -67,34 +72,18 @@ class PacemakerState:
                 self.index, epoch, self.current_leader, private_keys[self.index],
                 publisher, NUM_NODES, MAX_ROUNDS)
             self.follower_node.run()
-            print("Follower node started")
         else:
             self.follower_node.reset(
                 epoch, self.leader(epoch))
-            print("Follower node reset")
 
         if not self.leader_node and self.current_leader == self.index:
             self.leader_node = LeaderNode(
-                self.index, epoch, self.current_leader, publisher, NUM_NODES, MAX_ROUNDS)
+                self.index, epoch, publisher, NUM_NODES, MAX_ROUNDS)
             self.leader_node.run()
             print("Leader node started")
         elif self.leader_node:
             self.leader_node.stop()
             self.leader_node = None
-            print("Leader node stopped")
-
-        # if not self.leader_node and self.current_leader == self.index:
-        #     self.leader_node = LeaderNode(
-        #         self.index, epoch, self.current_leader,
-        #         publisher, NUM_NODES, MAX_ROUNDS)
-        #     self.leader_node.start(epoch, self.leader(epoch))
-        #     print("Leader node started")
-        # elif self.current_leader == self.index:
-        #     self.leader_node.start(epoch, self.leader(epoch))
-        #     print("Leader node reset")
-        # elif self.leader_node:
-        #     self.leader_node.stop()
-        #     print("Leader node stopped")
 
         print("Sleeping 3 seconds for nodes to fall back in sync")
         time.sleep(3)
@@ -117,7 +106,6 @@ class PacemakerState:
         sorted_new_epochs = self.new_epochs.copy()
         sorted_new_epochs.sort(reverse=True)
         e_new = sorted_new_epochs[F]
-        print("Requesting to proceed to epoch {}".format(e_new))
         self.send_new_epoch(max(e_new, self.ne), publisher, timer)
 
     def proceed_to_next_epoch(self, publisher, progress_timer):
