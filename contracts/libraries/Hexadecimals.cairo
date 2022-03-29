@@ -47,7 +47,7 @@ end
 
 # @param num is a tuple containing the high and low part,
 # where the high part is the first half of the hex string and low is the second
-func hex64_to_array{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+func hex64_to_array_deprecated{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
         num : (felt, felt)) -> (res_len : felt, res : felt*):
     alloc_locals
 

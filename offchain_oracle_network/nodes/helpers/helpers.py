@@ -1,5 +1,6 @@
 import zmq
 from threading import Timer
+import asyncio
 
 node_identities = {
     "0": 5560,
@@ -47,7 +48,6 @@ def subscribe_to_other_nodes_pacemaker(context):
     for name, port in node_identities.items():
         sub = context.socket(zmq.SUB)
         sub.connect(f"tcp://localhost:{port}")
-        # TODO: add pacemaker events
         sub.setsockopt(zmq.SUBSCRIBE, b'PROGRESS')
         sub.setsockopt(zmq.SUBSCRIBE, b'CHANGE-LEADER')
         sub.setsockopt(zmq.SUBSCRIBE, b'NEW-EPOCH')
@@ -55,6 +55,11 @@ def subscribe_to_other_nodes_pacemaker(context):
         sub.setsockopt(zmq.IDENTITY, name.encode())
         subscriptions.append(sub)
     return subscriptions
+
+
+def median(lst):
+    if len(lst):
+        return sorted(lst)[len(lst) // 2]
 
 
 class ResettingTimer(object):

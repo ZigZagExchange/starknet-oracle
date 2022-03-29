@@ -13,7 +13,7 @@ from starkware.cairo.common.math import (
 
 from contracts.utils.AccessControlls import set_access_controlls, only_owner
 from contracts.libraries.Hexadecimals import (
-    hex64_to_array, splice_array, hex_array_to_decimal, decimal_to_hex_array)
+    splice_array, hex_array_to_decimal, decimal_to_hex_array)
 from contracts.OffchainAggregator.utils import (
     check_for_duplicates, assert_array_sorted, check_config_valid, config_digest_from_config_data,
     hash_report, verify_sig)
@@ -37,6 +37,9 @@ struct Oracle:
     member index : felt
     member role : felt  # 0=unset, 1=Signer, 2-Transmitter
 end
+
+# TODO F = 5
+const F = 1
 
 # # ===========================================================================================
 # # EVENTS
@@ -108,14 +111,6 @@ func s_num_signers() -> (res : felt):
 end
 
 @storage_var
-func s_minAnswer() -> (res : felt):
-end
-
-@storage_var
-func s_maxAnswer() -> (res : felt):
-end
-
-@storage_var
 func s_decimals() -> (res : felt):
 end
 
@@ -128,11 +123,9 @@ end
 
 @constructor
 func constructor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
-        _minAnswer : felt, _maxAnswer : felt, _decimals : felt, owner : felt, _description : felt):
+        _decimals : felt, owner : felt, _description : felt):
     set_access_controlls(owner)
     s_decimals.write(_decimals)
-    s_minAnswer.write(_minAnswer)
-    s_maxAnswer.write(_maxAnswer)
     s_description.write(_description)
     return ()
 end
@@ -158,14 +151,14 @@ func requestNewRound{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_che
     return (roundId + 1)
 end
 
-# @argument _encoded could be an array
 @external
 func set_config{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
         _signers_len : felt, _signers : felt*, _transmitters_len : felt, _transmitters : felt*,
-        _threshold : felt, _encodedConfigVersion : felt, _encoded : felt) -> ():
+        _threshold : felt, config_version : felt, config_hash : felt) -> (res):
     alloc_locals
     check_config_valid(_signers_len, _transmitters_len, _threshold)
     # only_owner()
+    # TODO Recive a signature proving owner sent this without sending it through the account
 
     let (n_signers : felt) = s_num_signers.read()
     remove_signers_transmitters(n_signers)
@@ -185,14 +178,14 @@ func set_config{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_pt
 
     let (digest : felt) = config_digest_from_config_data(
         contract_address,
-        config_count + 1,
+        config_count,
         _signers_len,
         _signers,
         _transmitters_len,
         _transmitters,
         _threshold,
-        _encodedConfigVersion,
-        _encoded)
+        config_version,
+        config_hash)
 
     let (_, config_digest) = split_felt(digest)
 
@@ -207,33 +200,38 @@ func set_config{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_pt
         _transmitters_len,
         _transmitters,
         _threshold,
-        _encodedConfigVersion,
-        _encoded)
+        config_version,
+        config_hash)
 
-    return ()
+    return (config_digest)
 end
 
 # @params:
-# - raw_report_context - 11 bytes zero pading, 16 bytes config digest, 4 bytes epoch, 1 byte round
-# - raw_observes - observer indexes representing the order of the signatures
+# - report_context - 11 bytes zero pading, 16 bytes config digest, 4 bytes epoch, 1 byte round
+# - observer_idxs - observer indexes representing the order of the observations
 # - observations - the price observed by the oracles
+# - signatures - signatures used to sign the report
+# - signer_idxs - raw hex string representing which node the signature belongs to (used to retrive pub_key)
 
 @external
 func transmit{
         syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr,
         ecdsa_ptr : SignatureBuiltin*}(
-        raw_report_context : felt, raw_observers : felt, observations_len : felt,
-        observations : felt*, r_sigs_len : felt, r_sigs : felt*, s_sigs_len : felt,
-        s_sigs : felt*) -> (res):
+        report_context : felt, observer_idxs : felt, observations_len : felt, observations : felt*,
+        r_sigs_len : felt, r_sigs : felt*, s_sigs_len : felt, s_sigs : felt*, signer_idxs) -> (res):
     alloc_locals
 
-    let (hex_rrc_len, hex_rrc : felt*) = decimal_to_hex_array(raw_report_context, 21)
+    let (hex_rrc_len, hex_rrc : felt*) = decimal_to_hex_array(report_context, 21)
 
     let (conf_digest_len, conf_digest : felt*) = splice_array(hex_rrc_len, hex_rrc, 0, 32)
     let (epoch_and_round_len, epoch_and_round : felt*) = splice_array(hex_rrc_len, hex_rrc, 32, 42)
 
     let (latest_config_digest : felt) = s_latestConfigDigest.read()
-    # assert conf_digest == latest_config_digest
+    let (report_config_digest : felt) = hex_array_to_decimal(conf_digest_len, conf_digest)
+
+    with_attr error_message("==== (REPORT CONFIG DIGEST DOES NOT MATCH THE LATEST ONE) ===="):
+        assert report_config_digest = latest_config_digest
+    end
 
     let (latest_epoch_and_round : felt) = s_latestEpochAndRound.read()
     let (dec_epoch_and_round : felt) = hex_array_to_decimal(epoch_and_round_len, epoch_and_round)
@@ -266,15 +264,19 @@ func transmit{
 
     # ......................................................
 
-    let (hex_observers_len, hex_observers : felt*) = decimal_to_hex_array(raw_observers, 31)
+    let (hex_observers_len, hex_observers : felt*) = decimal_to_hex_array(
+        observer_idxs, observations_len)
     check_for_duplicates(hex_observers_len, hex_observers, 2)
+
+    let (hex_signer_idxs_len, hex_signer_idxs : felt*) = decimal_to_hex_array(signer_idxs, 2)
+    check_for_duplicates(hex_signer_idxs_len, hex_signer_idxs, 2)
 
     # ......................................................
 
-    let (msg_hash) = hash_report(raw_report_context, raw_observers, observations_len, observations)
+    let (msg_hash) = hash_report(report_context, observer_idxs, observations_len, observations)
 
     verify_all_signatures(
-        msg_hash, r_sigs_len, r_sigs, s_sigs_len, s_sigs, hex_observers_len, hex_observers)
+        msg_hash, r_sigs_len, r_sigs, s_sigs_len, s_sigs, hex_signer_idxs_len, hex_signer_idxs)
 
     # ......................................................
 
@@ -301,7 +303,7 @@ func transmit{
         observations=observations,
         observers_len=hex_observers_len,
         observers=hex_observers,
-        rawReportContext=raw_report_context)
+        rawReportContext=report_context)
 
     # ......................................................
 
@@ -488,7 +490,7 @@ func add_signers_transmitters{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, 
     let signer = signers[0]
     let (oracle) = s_oracles.read(signer)
     with_attr error_message("==== (SIGNER ADDRESS IS ALREADY REGISTERED) ===="):
-        assert oracle.role = 0
+        assert_not_zero(oracle.role - 1)
     end
 
     let oracle = Oracle(index=signers_len - 1, role=1)
@@ -500,7 +502,7 @@ func add_signers_transmitters{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, 
     let transmitter = transmitters[0]
     let (oracle) = s_oracles.read(transmitter)
     with_attr error_message("==== (TRANSMITTER ADDRESS IS ALREADY REGISTERED) ===="):
-        assert oracle.role = 0
+        assert_not_zero(oracle.role - 2)
     end
 
     let oracle = Oracle(index=signers_len - 1, role=2)
@@ -532,7 +534,7 @@ func verify_all_signatures{
         syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr,
         ecdsa_ptr : SignatureBuiltin*}(
         hash : felt, r_sigs_len : felt, r_sigs : felt*, s_sigs_len : felt, s_sigs : felt*,
-        observer_idxs_len : felt, observer_idxs : felt*) -> ():
+        signer_idxs_len : felt, signer_idxs : felt*) -> ():
     alloc_locals
 
     if r_sigs_len == 0:
@@ -541,7 +543,7 @@ func verify_all_signatures{
 
     let r_sig = r_sigs[0]
     let s_sig = s_sigs[0]
-    tempvar idx = observer_idxs[0] * 16 + observer_idxs[1]
+    tempvar idx = signer_idxs[0] * 16 + signer_idxs[1]
 
     let (pub_key) = s_signers.read(idx)
 
@@ -553,8 +555,8 @@ func verify_all_signatures{
         &r_sigs[1],
         s_sigs_len - 1,
         &s_sigs[1],
-        observer_idxs_len - 2,
-        &observer_idxs[2])
+        signer_idxs_len - 2,
+        &signer_idxs[2])
 end
 
 # # ===========================================================================================

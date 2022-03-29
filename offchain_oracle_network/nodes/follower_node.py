@@ -1,6 +1,7 @@
 import zmq
 import sys
 import json
+import os
 from time import sleep
 from pickle import dumps, loads
 import threading
@@ -10,13 +11,16 @@ from starkware.crypto.signature.signature import sign, verify, private_to_stark_
 
 
 import helpers.helpers as h
+from transmission import Transmission
 
 from classes.report_class import Report
 from follower import FollowerState
 
 
 # ? ===========================================================================
-file_path = "../../tests/dummy_data/dummy_keys.json"
+file_path = os.path.join(
+    os.path.normpath(os.getcwd() + os.sep + os.pardir + os.sep + os.pardir),
+    "tests/dummy_data/dummy_keys.json")
 f = open(file_path, 'r')
 keys = json.load(f)
 f.close()
@@ -57,6 +61,7 @@ class FollowerNode(FollowerState):
         self.poller.register(self.publisher, zmq.POLLIN)
         for sub in self.subscriptions:
             self.poller.register(sub, zmq.POLLIN)
+        self.transmission = Transmission(self.index)
 
     def run_(self):
 
@@ -78,9 +83,6 @@ class FollowerNode(FollowerState):
                         # ? ===============================================================
                         # SECTION Send Signed OBSERVATION to Leader
                         if msg[0] == b'OBSERVE-REQ':
-                            print(
-                                "Received OBSERVE-REQ at node {} from {} for round {}"
-                                .format(self.index, sub.get(zmq.IDENTITY).decode(), loads(msg[1])["round_n"]))
                             if int(sub.get(zmq.IDENTITY).decode()) != self.leader_id:
                                 print("Message sender should be the leader\n")
                                 continue
@@ -141,10 +143,9 @@ class FollowerNode(FollowerState):
 
                                 r_sig, s_sig = report.signatures[i]
                                 if not verify(msg_hash, r_sig, s_sig, public_keys[node_idx]):
-                                    print('ERROR: Signature verification failed')
+                                    # print(
+                                    #     'ERROR: Signature verification FAILED in REPORT-REQ')
                                     continue
-
-                            # TODO: If should_report else complete_round
 
                             signature = report.sign_report(self.private_key)
 
@@ -212,7 +213,7 @@ class FollowerNode(FollowerState):
                                 if self.count_received_echoes() > self.F:
                                     print(
                                         f"\nNode {self.index} invoking Transmission for round {self.round_num}  \n")
-                                    # TODO: Invoke transmit
+                                    self.transmission.transmit(report_bundle)
                                     self.complete_round(self.publisher)
                             else:
                                 print("Report attestation failed")

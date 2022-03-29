@@ -1,12 +1,34 @@
+import os
 from pickle import dumps
 import time
 import zmq
+import json
 import threading
 
 from classes.report_class import Report
 
-# TODO: Change the constants
-# F = 0
+
+# ? ----------------------------------------------------------------------------
+file_path = os.path.join(
+    os.path.normpath(os.getcwd() + os.sep + os.pardir + os.sep + os.pardir),
+    "tests/dummy_data/dummy_keys.json")
+f = open(file_path, 'r')
+keys = json.load(f)
+f.close()
+
+public_keys = keys["keys"]["public_keys"]
+private_keys = keys["keys"]["private_keys"]
+# ? ----------------------------------------------------------------------------
+# ? ----------------------------------------------------------------------------
+file_path = os.path.join(
+    os.path.normpath(os.getcwd() + os.sep + os.pardir + os.sep + os.pardir),
+    "offchain_oracle_network/nodes/config.json")
+f = open(file_path, 'r')
+config = json.load(f)
+f.close()
+
+config_digest = config["config"]["config_digest"]
+# ? ----------------------------------------------------------------------------
 
 
 class LeaderState:
@@ -62,8 +84,9 @@ class LeaderState:
 
         # NOTE Maybe do something if observation prices are too far apart
 
-        config_digest = self.get_config_digest()  # TODO
-        epoch_and_round = hex(self.epoch)[2:] + hex(self.round_num)[2:]
+        config_digest = self.get_config_digest()
+        epoch_and_round = hex(self.epoch)[2:].zfill(
+            8) + hex(self.round_num)[2:].zfill(2)
 
         raw_report_context = hex(config_digest)[2:] + epoch_and_round
         raw_observers = self.indexes_list_to_hex_string(observers)
@@ -99,8 +122,7 @@ class LeaderState:
     # * HELPER FUNCTIONS
 
     def get_config_digest(self):
-        # TODO: Get the config digest
-        return 123456789932728419024823509129473805294812389473419247 % 2**128
+        return config_digest
 
     def indexes_list_to_hex_string(self, idxs):
         hex_string = "0x"

@@ -1,0 +1,752 @@
+[
+    {
+        "members": [
+            {
+                "name": "roundId",
+                "offset": 0,
+                "type": "felt"
+            },
+            {
+                "name": "identifier",
+                "offset": 1,
+                "type": "felt"
+            },
+            {
+                "name": "answer",
+                "offset": 2,
+                "type": "Uint256"
+            },
+            {
+                "name": "timestamp",
+                "offset": 4,
+                "type": "felt"
+            },
+            {
+                "name": "block_number",
+                "offset": 5,
+                "type": "felt"
+            },
+            {
+                "name": "transmitter",
+                "offset": 6,
+                "type": "felt"
+            }
+        ],
+        "name": "Response",
+        "size": 7,
+        "type": "struct"
+    },
+    {
+        "members": [
+            {
+                "name": "low",
+                "offset": 0,
+                "type": "felt"
+            },
+            {
+                "name": "high",
+                "offset": 1,
+                "type": "felt"
+            }
+        ],
+        "name": "Uint256",
+        "size": 2,
+        "type": "struct"
+    },
+    {
+        "members": [
+            {
+                "name": "index",
+                "offset": 0,
+                "type": "felt"
+            },
+            {
+                "name": "role",
+                "offset": 1,
+                "type": "felt"
+            }
+        ],
+        "name": "Oracle",
+        "size": 2,
+        "type": "struct"
+    },
+    {
+        "members": [
+            {
+                "name": "latestConfigDigest",
+                "offset": 0,
+                "type": "felt"
+            },
+            {
+                "name": "latestEpochAndRound",
+                "offset": 1,
+                "type": "felt"
+            },
+            {
+                "name": "threshold",
+                "offset": 2,
+                "type": "felt"
+            },
+            {
+                "name": "latestAggregatorRoundId",
+                "offset": 3,
+                "type": "felt"
+            }
+        ],
+        "name": "HotVars",
+        "size": 4,
+        "type": "struct"
+    },
+    {
+        "data": [
+            {
+                "name": "owner",
+                "type": "felt"
+            },
+            {
+                "name": "external_oracle",
+                "type": "felt"
+            },
+            {
+                "name": "block_number",
+                "type": "felt"
+            }
+        ],
+        "keys": [],
+        "name": "access_controlls_initialized",
+        "type": "event"
+    },
+    {
+        "data": [
+            {
+                "name": "prev_owner",
+                "type": "felt"
+            },
+            {
+                "name": "new_owner",
+                "type": "felt"
+            },
+            {
+                "name": "block_number",
+                "type": "felt"
+            }
+        ],
+        "keys": [],
+        "name": "ownership_transfered",
+        "type": "event"
+    },
+    {
+        "data": [
+            {
+                "name": "prev_external_oracle",
+                "type": "felt"
+            },
+            {
+                "name": "new_external_oracle",
+                "type": "felt"
+            },
+            {
+                "name": "block_number",
+                "type": "felt"
+            }
+        ],
+        "keys": [],
+        "name": "external_oracle_changed",
+        "type": "event"
+    },
+    {
+        "inputs": [
+            {
+                "name": "_contractAddress",
+                "type": "felt"
+            },
+            {
+                "name": "_configCount",
+                "type": "felt"
+            },
+            {
+                "name": "_signers_len",
+                "type": "felt"
+            },
+            {
+                "name": "_signers",
+                "type": "felt*"
+            },
+            {
+                "name": "_transmitters_len",
+                "type": "felt"
+            },
+            {
+                "name": "_transmitters",
+                "type": "felt*"
+            },
+            {
+                "name": "_threshold",
+                "type": "felt"
+            },
+            {
+                "name": "_encodedConfigVersion",
+                "type": "felt"
+            },
+            {
+                "name": "_encodedConfig",
+                "type": "felt"
+            }
+        ],
+        "name": "config_digest_from_config_data_deprecated",
+        "outputs": [
+            {
+                "name": "digest",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "_contractAddress",
+                "type": "felt"
+            },
+            {
+                "name": "_configCount",
+                "type": "felt"
+            },
+            {
+                "name": "_signers_len",
+                "type": "felt"
+            },
+            {
+                "name": "_signers",
+                "type": "felt*"
+            },
+            {
+                "name": "_transmitters_len",
+                "type": "felt"
+            },
+            {
+                "name": "_transmitters",
+                "type": "felt*"
+            },
+            {
+                "name": "_threshold",
+                "type": "felt"
+            },
+            {
+                "name": "_encodedConfigVersion",
+                "type": "felt"
+            },
+            {
+                "name": "_encodedConfig",
+                "type": "felt"
+            }
+        ],
+        "name": "config_digest_from_config_data",
+        "outputs": [
+            {
+                "name": "res",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "data": [
+            {
+                "name": "prev_config_block_numb",
+                "type": "felt"
+            },
+            {
+                "name": "config_count",
+                "type": "felt"
+            },
+            {
+                "name": "signers_len",
+                "type": "felt"
+            },
+            {
+                "name": "signers",
+                "type": "felt*"
+            },
+            {
+                "name": "transmitters_len",
+                "type": "felt"
+            },
+            {
+                "name": "transmitters",
+                "type": "felt*"
+            },
+            {
+                "name": "treshold",
+                "type": "felt"
+            },
+            {
+                "name": "encodedConfigVersion",
+                "type": "felt"
+            },
+            {
+                "name": "encoded",
+                "type": "felt"
+            }
+        ],
+        "keys": [],
+        "name": "config_set",
+        "type": "event"
+    },
+    {
+        "data": [
+            {
+                "name": "requester",
+                "type": "felt"
+            },
+            {
+                "name": "configDigest",
+                "type": "felt"
+            },
+            {
+                "name": "epoch",
+                "type": "felt"
+            },
+            {
+                "name": "round",
+                "type": "felt"
+            }
+        ],
+        "keys": [],
+        "name": "round_requested",
+        "type": "event"
+    },
+    {
+        "data": [
+            {
+                "name": "aggregatorRoundId",
+                "type": "felt"
+            },
+            {
+                "name": "answer",
+                "type": "felt"
+            },
+            {
+                "name": "transmitter",
+                "type": "felt"
+            },
+            {
+                "name": "observations_len",
+                "type": "felt"
+            },
+            {
+                "name": "observations",
+                "type": "felt*"
+            },
+            {
+                "name": "observers_len",
+                "type": "felt"
+            },
+            {
+                "name": "observers",
+                "type": "felt*"
+            },
+            {
+                "name": "rawReportContext",
+                "type": "felt"
+            }
+        ],
+        "keys": [],
+        "name": "new_transmission",
+        "type": "event"
+    },
+    {
+        "inputs": [
+            {
+                "name": "_decimals",
+                "type": "felt"
+            },
+            {
+                "name": "owner",
+                "type": "felt"
+            },
+            {
+                "name": "_description",
+                "type": "felt"
+            }
+        ],
+        "name": "constructor",
+        "outputs": [],
+        "type": "constructor"
+    },
+    {
+        "inputs": [],
+        "name": "requestNewRound",
+        "outputs": [
+            {
+                "name": "res",
+                "type": "felt"
+            }
+        ],
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "_signers_len",
+                "type": "felt"
+            },
+            {
+                "name": "_signers",
+                "type": "felt*"
+            },
+            {
+                "name": "_transmitters_len",
+                "type": "felt"
+            },
+            {
+                "name": "_transmitters",
+                "type": "felt*"
+            },
+            {
+                "name": "_threshold",
+                "type": "felt"
+            },
+            {
+                "name": "config_version",
+                "type": "felt"
+            },
+            {
+                "name": "config_hash",
+                "type": "felt"
+            }
+        ],
+        "name": "set_config",
+        "outputs": [
+            {
+                "name": "res",
+                "type": "felt"
+            }
+        ],
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "report_context",
+                "type": "felt"
+            },
+            {
+                "name": "observer_idxs",
+                "type": "felt"
+            },
+            {
+                "name": "observations_len",
+                "type": "felt"
+            },
+            {
+                "name": "observations",
+                "type": "felt*"
+            },
+            {
+                "name": "r_sigs_len",
+                "type": "felt"
+            },
+            {
+                "name": "r_sigs",
+                "type": "felt*"
+            },
+            {
+                "name": "s_sigs_len",
+                "type": "felt"
+            },
+            {
+                "name": "s_sigs",
+                "type": "felt*"
+            },
+            {
+                "name": "signer_idxs",
+                "type": "felt"
+            }
+        ],
+        "name": "transmit",
+        "outputs": [
+            {
+                "name": "res",
+                "type": "felt"
+            }
+        ],
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "latestConfigDetails",
+        "outputs": [
+            {
+                "name": "config_count",
+                "type": "felt"
+            },
+            {
+                "name": "block_num",
+                "type": "felt"
+            },
+            {
+                "name": "config_digest",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "latestTransmissionDetails",
+        "outputs": [
+            {
+                "name": "config_digest",
+                "type": "felt"
+            },
+            {
+                "name": "epoch",
+                "type": "felt"
+            },
+            {
+                "name": "round",
+                "type": "felt"
+            },
+            {
+                "name": "latest_answer",
+                "type": "felt"
+            },
+            {
+                "name": "latest_timestamp",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "transmitters",
+        "outputs": [
+            {
+                "name": "transmitters_len",
+                "type": "felt"
+            },
+            {
+                "name": "transmitters",
+                "type": "felt*"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "latestAnswer",
+        "outputs": [
+            {
+                "name": "res",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "latestTimestamp",
+        "outputs": [
+            {
+                "name": "res",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "latestRound",
+        "outputs": [
+            {
+                "name": "res",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "roundId",
+                "type": "felt"
+            }
+        ],
+        "name": "getAnswer",
+        "outputs": [
+            {
+                "name": "res",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "roundId",
+                "type": "felt"
+            }
+        ],
+        "name": "getTimestamp",
+        "outputs": [
+            {
+                "name": "res",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "roundId",
+                "type": "felt"
+            }
+        ],
+        "name": "getRoundData",
+        "outputs": [
+            {
+                "name": "res",
+                "type": "Response"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "latestRoundData",
+        "outputs": [
+            {
+                "name": "res",
+                "type": "Response"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "description",
+        "outputs": [
+            {
+                "name": "res",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "decimals",
+        "outputs": [
+            {
+                "name": "res",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "idx",
+                "type": "felt"
+            }
+        ],
+        "name": "get_signer",
+        "outputs": [
+            {
+                "name": "signer",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "idx",
+                "type": "felt"
+            }
+        ],
+        "name": "get_transmitter",
+        "outputs": [
+            {
+                "name": "transmitter",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "idx",
+                "type": "felt"
+            }
+        ],
+        "name": "get_oracle",
+        "outputs": [
+            {
+                "name": "oracle",
+                "type": "Oracle"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "get_latest_hot_vars",
+        "outputs": [
+            {
+                "name": "hot_vars",
+                "type": "HotVars"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "get_configCount",
+        "outputs": [
+            {
+                "name": "res",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "get_latestConfigBlockNumber",
+        "outputs": [
+            {
+                "name": "res",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    }
+]

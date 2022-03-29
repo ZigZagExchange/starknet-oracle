@@ -1,4 +1,6 @@
 import ast
+import os
+import time
 
 import pytest
 import asyncio
@@ -16,36 +18,44 @@ from starkware.starknet.public.abi import get_selector_from_name, get_storage_va
 from starknet_py.net.client import Client
 from starknet_py.net.account.account_client import AccountClient, KeyPair
 from starknet_py.contract import Contract
-from starknet_py.net.models import StarknetChainId, InvokeFunction
 
+
+abis_path = os.path.join(
+    os.path.normpath(os.getcwd() + os.sep + os.pardir + os.sep + os.pardir),
+    "artifacts/abis/")
 
 OWNER_PRIV_KEY = int(config('OWNER_PRIV_KEY'))
 TRANSMITTER_PRIV_KEY = int(config('TRANSMITTER_PRIV_KEY'))
 
 
-account_abi = Path("artifacts/abis/Account.json").read_text()
+account_abi = Path(os.path.join(abis_path, "Account.json")).read_text()
 account_abi = ast.literal_eval(account_abi)
 
-transmitter_abi = Path("artifacts/abis/Transmitter.json").read_text()
+transmitter_abi = Path(os.path.join(abis_path, "Transmitter.json")).read_text()
 transmitter_abi = ast.literal_eval(transmitter_abi)
 
-main_oracle_abi = Path("artifacts/abis/MainOracle.json").read_text()
-main_oracle_abi = ast.literal_eval(main_oracle_abi)
+main_oracle_abi = Path(os.path.join(abis_path, "MainOracle.json")).read_text()
+print("main_oracle_abi: ", main_oracle_abi)
+# main_oracle_abi = ast.literal_eval(main_oracle_abi)
 
-ofc_aggregator_abi = Path("artifacts/abis/OffchainAggregator.json").read_text()
+ofc_aggregator_abi = Path(os.path.join(
+    abis_path, "OffchainAggregator.json")).read_text()
 ofc_aggregator_abi = ast.literal_eval(ofc_aggregator_abi)
 
 
 owner_addr = "0x05e8e3ffb034bb955aa73bc58d47f8126e9664c5398d0307fbd6dc54f10d867c"
-transmitter_addr = "0x06cc8f62768dec4b0661d0ad16e20aeef09cbb372d44a1c66458db4de6c4caa2"
+transmitter_addr = "0x0385eb396a9f04e0c4364c540727831935201893e60d982a6203947f30803d17"
 
-ofc_aggregator_addr = "0x1c8ec6add60de182318397228b83b5b510cb90cc3c592c75ee232042908b791"
+ofc_aggregator_addr = "0x06da2ddb9ae628cd405c5050466ae70abb36a1071fdc00987c9b19a19bc471de"
 main_oracle_addr = "0x73033b822f094e4ea7e6ccef82254c819224e8d65f660f108da844956d463d3"
 
-transmitter = Transmitter(TRANSMITTER_PRIV_KEY)
+# transmitter = Transmitter(TRANSMITTER_PRIV_KEY)
+transmitter = Transmitter(
+    369845423575795833804508439466765636244729169355142507531150208559352357013)
 # ...............................................................................
-
-file_path = "tests/dummy_data/dummy_calldata.json"
+file_path = os.path.join(
+    os.path.normpath(os.getcwd() + os.sep + os.pardir + os.sep + os.pardir),
+    "tests/dummy_data/dummy_calldata.json")
 f = open(file_path, 'r')
 calldata = json.load(f)
 f.close()
@@ -104,6 +114,14 @@ async def contract_factory():
 async def test_main_logic(contract_factory):
     owner_client, main_oracle, transmitter_acc, ofc_aggregator = contract_factory
 
+    start = time.time()
+    print("start: ", start)
+    res = await ofc_aggregator.functions["latestRoundData"].call()
+    end = time.time()
+    print("end: ", end)
+    print("time: ", end - start)
+    print(res)
+
 
 @pytest.mark.asyncio
 async def test_set_config(contract_factory):
@@ -152,7 +170,7 @@ async def test_transmit(contract_factory):
                 observations1,
                 r_sigs1,
                 s_sigs1,
-                signer_pub_keys]
+                "0x" + "00" * 32]
 
     invocation = await transmitter.send_transaction(
         account=transmitter_acc,

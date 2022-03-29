@@ -4,6 +4,7 @@ from pickle import dumps
 import sys
 import json
 import time
+import os
 from follower_node import FollowerNode
 from leader_node import LeaderNode
 from helpers.helpers import ResettingTimer
@@ -11,7 +12,9 @@ import zmq
 import threading
 
 # ? ===========================================================================
-file_path = "../../tests/dummy_data/dummy_keys.json"
+file_path = os.path.join(
+    os.path.normpath(os.getcwd() + os.sep + os.pardir + os.sep + os.pardir),
+    "tests/dummy_data/dummy_keys.json")
 f = open(file_path, 'r')
 keys = json.load(f)
 f.close()
@@ -21,11 +24,8 @@ private_keys = keys["keys"]["private_keys"]
 # ? ===========================================================================
 
 
-# TODO Change the constants
-
 NUM_NODES = 4
-MAX_ROUNDS = 5
-F = NUM_NODES//3
+MAX_ROUNDS = 20
 
 NODE_IDX = int(sys.argv[1])
 
@@ -42,12 +42,12 @@ class PacemakerState:
         self.ne = 0
         self.new_epochs = [0] * NUM_NODES
         self.index = index
+        self.F = NUM_NODES//3
         self.follower_node = None
         self.leader_node = None
         self.latest_init_time = 0
 
     def leader(self, epoch):
-        # TODO: Implement a more secure leader function
         return (3 * epoch + 123) % NUM_NODES
 
     def on_progress(self):
@@ -105,7 +105,7 @@ class PacemakerState:
         '''
         sorted_new_epochs = self.new_epochs.copy()
         sorted_new_epochs.sort(reverse=True)
-        e_new = sorted_new_epochs[F]
+        e_new = sorted_new_epochs[self.F]
         self.send_new_epoch(max(e_new, self.ne), publisher, timer)
 
     def proceed_to_next_epoch(self, publisher, progress_timer):
@@ -116,7 +116,7 @@ class PacemakerState:
         '''
         sorted_new_epochs = self.new_epochs.copy()
         sorted_new_epochs.sort(reverse=True)
-        e_new = sorted_new_epochs[2*F]  # 2F+1-th element
+        e_new = sorted_new_epochs[2*self.F]  # 2F+1-th element
 
         current_epoch = e_new
         # current_leader = self.leader(e_new)

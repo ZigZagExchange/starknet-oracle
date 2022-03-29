@@ -81,14 +81,14 @@ func config_digest_from_config_data{
 end
 
 func hash_report{pedersen_ptr : HashBuiltin*}(
-        raw_report_context : felt, raw_observers : felt, observations_len : felt,
+        report_context : felt, observer_idxs : felt, observations_len : felt,
         observations : felt*) -> (res : felt):
     let hash_ptr = pedersen_ptr
     with hash_ptr:
         let (hash_state_ptr) = hash_init()
 
-        let (hash_state_ptr) = hash_update_single(hash_state_ptr, raw_report_context)
-        let (hash_state_ptr) = hash_update_single(hash_state_ptr, raw_observers)
+        let (hash_state_ptr) = hash_update_single(hash_state_ptr, report_context)
+        let (hash_state_ptr) = hash_update_single(hash_state_ptr, observer_idxs)
         let (hash_state_ptr) = hash_update(hash_state_ptr, observations, observations_len)
 
         let (res) = hash_finalize(hash_state_ptr)

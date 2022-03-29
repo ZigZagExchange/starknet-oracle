@@ -1,18 +1,23 @@
+from random import random
 import time
 from classes.report_class import Report
 import zmq
 import threading
 import json
+import os
+
+from helpers import helpers as h
 
 from starkware.cairo.common.hash_state import compute_hash_on_elements
 from starkware.crypto.signature.signature import sign, verify
 
-
-# TODO: change constants
-F = 0
+T_BETWEEN_COMMITS = 300
+alpha = 0.0025
 
 # ? ===========================================================================
-file_path = "../../tests/dummy_data/dummy_keys.json"
+file_path = os.path.join(
+    os.path.normpath(os.getcwd() + os.sep + os.pardir + os.sep + os.pardir),
+    "tests/dummy_data/dummy_keys.json")
 f = open(file_path, 'r')
 keys = json.load(f)
 f.close()
@@ -55,17 +60,15 @@ class FollowerState():
     def complete_round(self, publisher):
         self.completedround = True
         publisher.send_multipart([b'PROGRESS'])
-        # TODO: Invoke event progress
 
     # * =============================================================================================
     # * HELPERS
 
     def verify_attested_report(self, report_bundle):
-
         e, r, report, signatures, signers = report_bundle
 
         report: Report
-        if len(signatures) <= F:
+        if len(signatures) <= self.F:
             print("ERROR: Not enough signatures")
             return
 
@@ -79,8 +82,14 @@ class FollowerState():
         return True
 
     def get_price(self):
-        # TODO: Implement a function that returns the current price of an asset
-        return 2687*10**8
+        # TODO: INSERT A PRICE GETTER FUNCTION HERE
+        return 2687*10**8 + int(random()*10**8)
+
+    def should_report(self, latest_comited_report, report):
+        e_C, r_C, answer_C, t_C = latest_comited_report
+
+        return answer_C == 0 or time.time() - t_C >= T_BETWEEN_COMMITS or \
+            (abs(h.median(report.observations) - answer_C))/abs(answer_C) > alpha
 
     def verify_report_sorted(self, report: Report):
         # NOTE Maybe do something if observation prices are too far apart
@@ -88,15 +97,6 @@ class FollowerState():
             if report.observations[i] > report.observations[i + 1]:
                 return False
         return True
-
-    def get_last_report(self):
-
-        # TODO: Return the last attested report (R, t)
-        return (0, 0)
-
-    def get_config_digest(self):
-        # TODO: Get the config digest
-        return 123456789
 
     def observers_list_to_hex_string(self, observers):
         raw_observers = "0x"

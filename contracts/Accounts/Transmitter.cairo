@@ -25,8 +25,7 @@ struct Transmission:
     member r_sigs : felt*
     member s_sigs_len : felt
     member s_sigs : felt*
-    member public_keys_len : felt
-    member public_keys : felt*
+    member signer_idxs : felt
     member nonce : felt
 end
 
@@ -122,8 +121,7 @@ func transmit{
         ecdsa_ptr : SignatureBuiltin*}(
         to : felt, selector : felt, raw_report_context : felt, raw_observers : felt,
         observations_len : felt, observations : felt*, r_sigs_len : felt, r_sigs : felt*,
-        s_sigs_len : felt, s_sigs : felt*, public_keys_len : felt, public_keys : felt*,
-        nonce : felt) -> (a_len : felt, a : felt*):
+        s_sigs_len : felt, s_sigs : felt*, signer_idxs : felt, nonce : felt) -> (res):
     alloc_locals
 
     let (__fp__, _) = get_fp_and_pc()
@@ -145,15 +143,14 @@ func transmit{
         r_sigs,
         s_sigs_len,
         s_sigs,
-        public_keys_len,
-        public_keys,
+        signer_idxs,
         _current_nonce
         )
 
     # validate transaction
     let (hash) = hash_message(&transmission)
     let (signature_len, signature) = get_tx_signature()
-    # is_valid_signature(hash, signature_len, signature)
+    is_valid_signature(hash, signature_len, signature)
 
     # bump nonce
     current_nonce.write(_current_nonce + 1)
@@ -169,10 +166,9 @@ func transmit{
         r_sigs,
         s_sigs_len,
         s_sigs,
-        public_keys_len,
-        public_keys)
+        signer_idxs)
 
-    return (signature_len, signature)
+    return (res)
 end
 
 func hash_message{pedersen_ptr : HashBuiltin*}(transmission : Transmission*) -> (res : felt):
@@ -207,8 +203,7 @@ func hash_calldata{pedersen_ptr : HashBuiltin*}(transmission : Transmission*) ->
             hash_state_ptr, transmission.r_sigs, transmission.r_sigs_len)
         let (hash_state_ptr) = hash_update(
             hash_state_ptr, transmission.s_sigs, transmission.s_sigs_len)
-        let (hash_state_ptr) = hash_update(
-            hash_state_ptr, transmission.public_keys, transmission.public_keys_len)
+        let (hash_state_ptr) = hash_update_single(hash_state_ptr, transmission.signer_idxs)
 
         let (res) = hash_finalize(hash_state_ptr)
         let pedersen_ptr = hash_ptr
@@ -221,6 +216,6 @@ namespace OffchainAggregator:
     func transmit(
             raw_report_context : felt, raw_observers : felt, observations_len : felt,
             observations : felt*, r_sigs_len : felt, r_sigs : felt*, s_sigs_len : felt,
-            s_sigs : felt*, public_keys_len : felt, public_keys : felt*) -> (res):
+            s_sigs : felt*, signer_idxs : felt) -> (res):
     end
 end
