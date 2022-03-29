@@ -8,9 +8,11 @@ MakeFile
 
 external_oracle.py
 
-notes/
-tests/__pycache__/
+offchain_oracle_network/nodes/__pycache__
+offchain_oracle_network/nodes/classes/__pycache__
+offchain_oracle_network/nodes/helpers/__pycache__
 
+tests/__pycache__/
 tests/local_tests/__pycache__/
 tests/testnet_tests/__pycache__/
 tests/other_tests/
