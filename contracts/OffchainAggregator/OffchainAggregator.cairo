@@ -19,12 +19,6 @@ from contracts.OffchainAggregator.utils import (
     hash_report, verify_sig)
 from contracts.structs.Response_struct import Response
 
-struct HotVars:
-    member latestConfigDigest : felt
-    member latestEpochAndRound : felt
-    member threshold : felt
-    member latestAggregatorRoundId : felt
-end
 
 struct Transmission:
     member answer : felt
@@ -584,18 +578,6 @@ func get_oracle{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_pt
     let (oracle) = s_oracles.read(idx=idx)
 
     return (oracle)
-end
-
-@view
-func get_latest_hot_vars{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
-        hot_vars : HotVars):
-    let (config_digest) = s_latestConfigDigest.read()
-    let (epoch_and_round) = s_latestEpochAndRound.read()
-    let (threshold) = s_threshold.read()
-    let (roundId) = s_latestAggregatorRoundId.read()
-
-    let h_vars = HotVars(config_digest, epoch_and_round, threshold, roundId)
-    return (h_vars)
 end
 
 @view
