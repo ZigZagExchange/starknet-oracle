@@ -23,6 +23,7 @@ The offchain oracle network consist of nodes coordinating amongst themselves to 
 
 Since multiple nodes are signing the report, it is highly improbable for a malicious or faulty node operator to get incorrect prices accepted onchain or prevent honest nodes from transmitting, without at least a third of the operators colluding.
 
+_Feel free to [contact us](https://info.zigzag.exchange/#contact) if you want to contribute._ 
 
 ---
 
