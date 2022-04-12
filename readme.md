@@ -21,7 +21,7 @@ The offchain oracle network consist of nodes coordinating amongst themselves to 
 3. all signatures are valid
 4. the report is recent and has not yet been transmitted  
 
-Since multiple nodes are signing the report, it is impossible for a malicious or faulty node operator to get incorrect prices accepted onchain or prevent honest nodes from transmitting, without at least a third of the operators colluding.
+Since multiple nodes are signing the report, it is highly improbable for a malicious or faulty node operator to get incorrect prices accepted onchain or prevent honest nodes from transmitting, without at least a third of the operators colluding.
 
 
 ---
