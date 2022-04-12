@@ -9,19 +9,19 @@
 ---
 
 ## Description:
-*Please keep in mind this is still being developed and has not yet been deployed.*
+*Please keep in mind, this is still being developed and has not yet been deployed.*
 
-A grea deal of credit goes to the Chainlink team since this oracle was heavily inspired by their [Offchain Reporting](https://uploads-ssl.webflow.com/5f6b7190899f41fb70882d08/603651a1101106649eef6a53_chainlink-ocr-protocol-paper-02-24-20.pdf) paper.
+A great deal of credit goes to the Chainlink team, since this oracle was heavily inspired by their [Offchain Reporting](https://uploads-ssl.webflow.com/5f6b7190899f41fb70882d08/603651a1101106649eef6a53_chainlink-ocr-protocol-paper-02-24-20.pdf) paper.
 
 I will give a brief explanation of our implementation, which consist of the [offchain-oracle-network](https://github.com/ZigZagExchange/starknet-oracle/tree/main/offchain_oracle_network/nodes) and the [onchain-aggregator](https://github.com/ZigZagExchange/starknet-oracle/tree/main/contracts/OffchainAggregator).
 
-The offchain oracle network consist of nodes cordinating amongst themselves to fetch prices from different sources sign them and distribute them to all other nodes. Once enough nodes come to consenses, they start transmitting the report to the onchain aggregator contract, which than checks that:
+The offchain oracle network consist of nodes coordinating amongst themselves to fetch prices from different sources, sign them and distribute them to all other nodes. Once enough nodes come to consensus, they start transmitting the report to the onchain aggregator contract, which then checks that:
 1. enough observations have been submitted for a fair report
-2. enough nodes have signed the report attesting its' validity
+2. enough nodes have signed the report attesting its validity
 3. all signatures are valid
 4. the report is recent and has not yet been transmitted  
 
-Since multiple nodes are signing the report it is impossible for a malicious or faulty node operator to get incorrect prices accepted on chain or prevent honest nodes from transmitting, without at least a third of the operators colluding.
+Since multiple nodes are signing the report, it is impossible for a malicious or faulty node operator to get incorrect prices accepted onchain or prevent honest nodes from transmitting, without at least a third of the operators colluding.
 
 
 ---
